@@ -42,120 +42,77 @@ function showLoading(show = true) {
   }
 }
 
-// ==================== DATA CACHE ====================
-window.dataCache = {
-  users: [],
-  months: [],
-  shifts: [],
-  reservations: [],
-  settings: {}
+// ==================== API WRAPPER OBJECT ====================
+window.API = {
+  async getUsers() {
+    return await callAPI('/users');
+  },
+  
+  async getMonths() {
+    return await callAPI('/months');
+  },
+  
+  async getShifts(monthId) {
+    return await callAPI(`/shifts?monthId=${monthId}`);
+  },
+  
+  async getReservations(monthId) {
+    return await callAPI(`/reservations?monthId=${monthId}`);
+  },
+  
+  async getSettings() {
+    return await callAPI('/settings');
+  },
+  
+  async login(username, password) {
+    return await callAPI('/login', 'POST', { username, password });
+  },
+  
+  async createUser(userData) {
+    return await callAPI('/users', 'POST', userData);
+  },
+  
+  async updateUser(userId, userData) {
+    return await callAPI(`/users/${userId}`, 'PUT', userData);
+  },
+  
+  async deleteUser(userId) {
+    return await callAPI(`/users/${userId}`, 'DELETE');
+  },
+  
+  async createMonth(year, month) {
+    return await callAPI('/months', 'POST', { year, month });
+  },
+  
+  async updateMonth(monthId, monthData) {
+    return await callAPI(`/months/${monthId}`, 'PUT', monthData);
+  },
+  
+  async deleteMonth(monthId) {
+    return await callAPI(`/months/${monthId}`, 'DELETE');
+  },
+  
+  async createReservation(shiftId, userId) {
+    return await callAPI('/reservations', 'POST', { shiftId, userId });
+  },
+  
+  async deleteReservation(reservationId) {
+    return await callAPI(`/reservations/${reservationId}`, 'DELETE');
+  },
+  
+  async updateSettings(settings) {
+    return await callAPI('/settings', 'PUT', settings);
+  },
+  
+  async updateShift(shiftId, shiftData) {
+    return await callAPI(`/shifts/${shiftId}`, 'PUT', shiftData);
+  }
 };
 
-// ==================== API WRAPPER FUNCTIONS ====================
-
-// Override localStorage functions to use API instead
-const originalLocalStorage = {
-  getItem: localStorage.getItem.bind(localStorage),
-  setItem: localStorage.setItem.bind(localStorage),
-  removeItem: localStorage.removeItem.bind(localStorage)
-};
-
-// Intercept localStorage.getItem
-Storage.prototype.getItem = function(key) {
-  // For non-escalas keys, use original localStorage
-  if (!key.startsWith('escalas_')) {
-    return originalLocalStorage.getItem(key);
-  }
-  
-  // Return cached data
-  if (key === 'escalas_users') {
-    return JSON.stringify(window.dataCache.users);
-  } else if (key === 'escalas_months') {
-    return JSON.stringify(window.dataCache.months);
-  } else if (key === 'escalas_shifts') {
-    return JSON.stringify(window.dataCache.shifts);
-  } else if (key === 'escalas_reservations') {
-    return JSON.stringify(window.dataCache.reservations);
-  } else if (key === 'escalas_settings') {
-    return JSON.stringify(window.dataCache.settings);
-  }
-  
-  return originalLocalStorage.getItem(key);
-};
-
-// Intercept localStorage.setItem to trigger API calls
-Storage.prototype.setItem = function(key, value) {
-  // For non-escalas keys, use original localStorage
-  if (!key.startsWith('escalas_')) {
-    return originalLocalStorage.setItem(key, value);
-  }
-  
-  const data = JSON.parse(value);
-  
-  // Update cache
-  if (key === 'escalas_users') {
-    window.dataCache.users = data;
-    syncUsers();
-  } else if (key === 'escalas_months') {
-    window.dataCache.months = data;
-    syncMonths();
-  } else if (key === 'escalas_shifts') {
-    window.dataCache.shifts = data;
-    syncShifts();
-  } else if (key === 'escalas_reservations') {
-    window.dataCache.reservations = data;
-    syncReservations();
-  } else if (key === 'escalas_settings') {
-    window.dataCache.settings = data;
-    syncSettings();
-  }
-};
-
-// ==================== SYNC FUNCTIONS ====================
-
-async function syncUsers() {
-  // This is called after cache is updated, we need to sync with server
-  // For now, we'll handle this in specific functions
-}
-
-async function syncMonths() {
-  // Sync months with server
-}
-
-async function syncShifts() {
-  // Sync shifts with server
-}
-
-async function syncReservations() {
-  // Sync reservations with server
-}
-
-async function syncSettings() {
-  // Sync settings with server
-}
-
-// ==================== LOAD INITIAL DATA ====================
-
-async function loadAllData() {
-  try {
-    showLoading(true);
-    
-    // Load all data from server
-    window.dataCache.users = await callAPI('/users');
-    window.dataCache.months = await callAPI('/months');
-    window.dataCache.settings = await callAPI('/settings');
-    
-    showLoading(false);
-  } catch (error) {
-    showLoading(false);
-    console.error('Error loading data:', error);
-  }
-}
-
-// ==================== OVERRIDE SPECIFIC FUNCTIONS ====================
+// ==================== OVERRIDE FUNCTIONS ====================
 
 // Override handleLogin
-window.originalHandleLogin = window.handleLogin;
+const originalHandleLogin = window.handleLogin;
 window.handleLogin = async function() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -168,16 +125,13 @@ window.handleLogin = async function() {
   showLoading(true);
   
   try {
-    const user = await callAPI('/login', 'POST', { username, password });
+    const user = await API.login(username, password);
     
     if (!user) {
       alert('Usuário ou senha inválidos, ou usuário desativado.');
       showLoading(false);
       return;
     }
-    
-    // Load all data
-    await loadAllData();
     
     // Set current user
     window.currentUser = user;
@@ -198,8 +152,39 @@ window.handleLogin = async function() {
   }
 };
 
+// Override loadMonthsDropdown
+const originalLoadMonthsDropdown = window.loadMonthsDropdown;
+window.loadMonthsDropdown = async function() {
+  showLoading(true);
+  try {
+    const months = await API.getMonths();
+    const select = document.getElementById('monthSelect');
+    
+    select.innerHTML = '<option value="">Selecione um mês</option>';
+    
+    // Show only active months for regular users
+    const availableMonths = window.currentUser.isAdmin ? months : months.filter(m => m.isActive);
+    
+    availableMonths.forEach(month => {
+      const option = document.createElement('option');
+      option.value = month.id;
+      const monthName = new Date(month.year, month.month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      option.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+      if (!month.isActive) {
+        option.textContent += ' (Inativo)';
+      }
+      select.appendChild(option);
+    });
+    
+    showLoading(false);
+  } catch (error) {
+    showLoading(false);
+    alert('Erro ao carregar meses: ' + error.message);
+  }
+};
+
 // Override createMonth
-window.originalCreateMonth = window.createMonth;
+const originalCreateMonth = window.createMonth;
 window.createMonth = async function() {
   const year = parseInt(document.getElementById('createMonthYear').value);
   const month = parseInt(document.getElementById('createMonthMonth').value);
@@ -212,12 +197,8 @@ window.createMonth = async function() {
   showLoading(true);
   
   try {
-    const newMonth = await callAPI('/months', 'POST', { year, month });
+    await API.createMonth(year, month);
     
-    // Reload months
-    window.dataCache.months = await callAPI('/months');
-    
-    // Close modal and reload
     window.closeCreateMonthModal();
     await window.loadMonthsDropdown();
     
@@ -230,7 +211,7 @@ window.createMonth = async function() {
 };
 
 // Override deleteMonth
-window.originalDeleteMonth = window.deleteMonth;
+const originalDeleteMonth = window.deleteMonth;
 window.deleteMonth = async function() {
   if (!window.currentMonthId) {
     alert('Nenhum mês selecionado.');
@@ -244,13 +225,11 @@ window.deleteMonth = async function() {
   showLoading(true);
   
   try {
-    await callAPI(`/months/${window.currentMonthId}`, 'DELETE');
+    await API.deleteMonth(window.currentMonthId);
     
-    // Reload data
-    window.dataCache.months = await callAPI('/months');
     window.currentMonthId = null;
-    
     await window.loadMonthsDropdown();
+    document.getElementById('scheduleContent').innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Selecione um mês para visualizar a escala.</p>';
     
     showLoading(false);
     alert('Mês excluído com sucesso!');
@@ -261,7 +240,7 @@ window.deleteMonth = async function() {
 };
 
 // Override toggleMonthActive
-window.originalToggleMonthActive = window.toggleMonthActive;
+const originalToggleMonthActive = window.toggleMonthActive;
 window.toggleMonthActive = async function() {
   if (!window.currentMonthId) {
     alert('Nenhum mês selecionado.');
@@ -271,19 +250,23 @@ window.toggleMonthActive = async function() {
   showLoading(true);
   
   try {
-    const month = window.dataCache.months.find(m => m.id === window.currentMonthId);
+    const months = await API.getMonths();
+    const month = months.find(m => m.id === window.currentMonthId);
     
-    await callAPI(`/months/${window.currentMonthId}`, 'PUT', {
+    if (!month) {
+      throw new Error('Mês não encontrado');
+    }
+    
+    await API.updateMonth(window.currentMonthId, {
       ...month,
       isActive: !month.isActive
     });
     
-    // Reload months
-    window.dataCache.months = await callAPI('/months');
-    
+    await window.loadMonthsDropdown();
     await window.loadSchedule();
     
     showLoading(false);
+    alert(`Mês ${month.isActive ? 'desativado' : 'ativado'} com sucesso!`);
   } catch (error) {
     alert('Erro ao atualizar mês: ' + error.message);
     showLoading(false);
@@ -291,7 +274,7 @@ window.toggleMonthActive = async function() {
 };
 
 // Override loadSchedule
-window.originalLoadSchedule = window.loadSchedule;
+const originalLoadSchedule = window.loadSchedule;
 window.loadSchedule = async function() {
   if (!window.currentMonthId) {
     document.getElementById('scheduleContent').innerHTML = '<p style="text-align:center;color:#666;padding:40px;">Selecione um mês para visualizar a escala.</p>';
@@ -301,15 +284,85 @@ window.loadSchedule = async function() {
   showLoading(true);
   
   try {
-    // Load shifts and reservations for this month
-    window.dataCache.shifts = await callAPI(`/shifts?monthId=${window.currentMonthId}`);
-    window.dataCache.reservations = await callAPI(`/reservations?monthId=${window.currentMonthId}`);
+    const months = await API.getMonths();
+    const month = months.find(m => m.id === window.currentMonthId);
     
-    // Call original function to render
-    if (window.originalLoadSchedule) {
-      window.originalLoadSchedule();
+    if (!month) {
+      throw new Error('Mês não encontrado');
     }
     
+    const shifts = await API.getShifts(window.currentMonthId);
+    const reservations = await API.getReservations(window.currentMonthId);
+    const users = await API.getUsers();
+    
+    // Build schedule HTML
+    const daysInMonth = new Date(month.year, month.month, 0).getDate();
+    const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    
+    let html = '';
+    
+    // Process in blocks of 10 days
+    for (let blockStart = 1; blockStart <= daysInMonth; blockStart += 10) {
+      const blockEnd = Math.min(blockStart + 9, daysInMonth);
+      
+      html += '<div style="margin-bottom: 30px;">';
+      html += '<table class="schedule-table">';
+      html += '<thead><tr><th>Turno</th>';
+      
+      for (let day = blockStart; day <= blockEnd; day++) {
+        const date = new Date(month.year, month.month - 1, day);
+        const dayOfWeek = weekDays[date.getDay()];
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        html += `<th style="${isWeekend ? 'background:#ffe6e6;' : ''}">${day}<br><small>${dayOfWeek}</small></th>`;
+      }
+      
+      html += '</tr></thead><tbody>';
+      
+      // Turnos: Integral, Diurno, Noturno
+      const turnos = [
+        { code: 'I', name: 'Integral' },
+        { code: 'D', name: 'Diurno' },
+        { code: 'N', name: 'Noturno' }
+      ];
+      
+      turnos.forEach(turno => {
+        html += `<tr><td><strong>${turno.name}</strong></td>`;
+        
+        for (let day = blockStart; day <= blockEnd; day++) {
+          const dayShifts = shifts.filter(s => s.day === day && s.type === turno.code);
+          
+          html += '<td>';
+          
+          dayShifts.forEach(shift => {
+            const shiftReservations = reservations.filter(r => r.shiftId === shift.id);
+            const available = shift.capacity - shiftReservations.length;
+            const userReservation = shiftReservations.find(r => r.userId === window.currentUser.id);
+            
+            if (userReservation) {
+              html += `<div class="slot my-reservation" onclick="handleSlotClick(${shift.id}, ${userReservation.id})">${window.currentUser.fullName.split(' ')[0]}</div>`;
+            } else if (available > 0 && (!month.isActive && !window.currentUser.isAdmin)) {
+              html += `<div class="slot unavailable">Inativo</div>`;
+            } else if (available > 0) {
+              html += `<div class="slot available" onclick="handleSlotClick(${shift.id}, null)">Disponível (${available})</div>`;
+            } else {
+              const otherUsers = shiftReservations.map(r => {
+                const user = users.find(u => u.id === r.userId);
+                return user ? user.fullName.split(' ')[0] : 'Usuário';
+              }).join(', ');
+              html += `<div class="slot full">${otherUsers}</div>`;
+            }
+          });
+          
+          html += '</td>';
+        }
+        
+        html += '</tr>';
+      });
+      
+      html += '</tbody></table></div>';
+    }
+    
+    document.getElementById('scheduleContent').innerHTML = html;
     showLoading(false);
   } catch (error) {
     alert('Erro ao carregar escala: ' + error.message);
@@ -318,20 +371,16 @@ window.loadSchedule = async function() {
 };
 
 // Override handleSlotClick
-window.originalHandleSlotClick = window.handleSlotClick;
 window.handleSlotClick = async function(shiftId, reservationId) {
   showLoading(true);
   
   try {
     if (reservationId) {
       // Delete reservation
-      await callAPI(`/reservations/${reservationId}`, 'DELETE');
+      await API.deleteReservation(reservationId);
     } else {
       // Create reservation
-      await callAPI('/reservations', 'POST', {
-        shiftId: shiftId,
-        userId: window.currentUser.id
-      });
+      await API.createReservation(shiftId, window.currentUser.id);
     }
     
     // Reload schedule
@@ -344,8 +393,42 @@ window.handleSlotClick = async function(shiftId, reservationId) {
   }
 };
 
+// Override loadUsersTable
+const originalLoadUsersTable = window.loadUsersTable;
+window.loadUsersTable = async function() {
+  showLoading(true);
+  try {
+    const users = await API.getUsers();
+    const tbody = document.querySelector('#usersTab table tbody');
+    
+    tbody.innerHTML = '';
+    
+    users.forEach(user => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${user.fullName}</td>
+        <td>${user.cpf}</td>
+        <td>${user.login}</td>
+        <td>${user.isAdmin ? 'Gestor' : 'Usuário'}</td>
+        <td><span class="status-badge ${user.isActive ? 'active' : 'inactive'}">${user.isActive ? 'Ativo' : 'Inativo'}</span></td>
+        <td>
+          <button class="btn-action btn-edit" onclick="editUser(${user.id})">Editar</button>
+          <button class="btn-action btn-warning" onclick="toggleUserActive(${user.id})">${user.isActive ? 'Desativar' : 'Ativar'}</button>
+          <button class="btn-action btn-danger" onclick="deleteUser(${user.id})">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    
+    showLoading(false);
+  } catch (error) {
+    showLoading(false);
+    alert('Erro ao carregar usuários: ' + error.message);
+  }
+};
+
 // Override saveUser
-window.originalSaveUser = window.saveUser;
+const originalSaveUser = window.saveUser;
 window.saveUser = async function() {
   const userId = window.editingUserId;
   const fullName = document.getElementById('userFullName').value.trim();
@@ -371,15 +454,10 @@ window.saveUser = async function() {
     };
     
     if (userId) {
-      // Update
-      await callAPI(`/users/${userId}`, 'PUT', { ...userData, id: userId });
+      await API.updateUser(userId, { ...userData, id: userId });
     } else {
-      // Create
-      await callAPI('/users', 'POST', userData);
+      await API.createUser(userData);
     }
-    
-    // Reload users
-    window.dataCache.users = await callAPI('/users');
     
     window.closeUserModal();
     await window.loadUsersTable();
@@ -393,7 +471,6 @@ window.saveUser = async function() {
 };
 
 // Override deleteUser
-window.originalDeleteUser = window.deleteUser;
 window.deleteUser = async function(userId) {
   if (!confirm('Tem certeza que deseja excluir este usuário?')) {
     return;
@@ -402,11 +479,7 @@ window.deleteUser = async function(userId) {
   showLoading(true);
   
   try {
-    await callAPI(`/users/${userId}`, 'DELETE');
-    
-    // Reload users
-    window.dataCache.users = await callAPI('/users');
-    
+    await API.deleteUser(userId);
     await window.loadUsersTable();
     
     showLoading(false);
@@ -417,8 +490,52 @@ window.deleteUser = async function(userId) {
   }
 };
 
+// Override toggleUserActive
+window.toggleUserActive = async function(userId) {
+  showLoading(true);
+  
+  try {
+    const users = await API.getUsers();
+    const user = users.find(u => u.id === userId);
+    
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+    
+    await API.updateUser(userId, {
+      ...user,
+      isActive: !user.isActive
+    });
+    
+    await window.loadUsersTable();
+    
+    showLoading(false);
+    alert(`Usuário ${user.isActive ? 'desativado' : 'ativado'} com sucesso!`);
+  } catch (error) {
+    alert('Erro ao atualizar usuário: ' + error.message);
+    showLoading(false);
+  }
+};
+
+// Override loadSettings
+const originalLoadSettings = window.loadSettings;
+window.loadSettings = async function() {
+  showLoading(true);
+  try {
+    const settings = await API.getSettings();
+    
+    document.getElementById('value12h').value = settings.value12h || 125;
+    document.getElementById('valueIntegral').value = settings.valueIntegral || 250;
+    
+    showLoading(false);
+  } catch (error) {
+    showLoading(false);
+    alert('Erro ao carregar configurações: ' + error.message);
+  }
+};
+
 // Override saveSettings
-window.originalSaveSettings = window.saveSettings;
+const originalSaveSettings = window.saveSettings;
 window.saveSettings = async function() {
   const value12h = parseFloat(document.getElementById('value12h').value);
   const valueIntegral = parseFloat(document.getElementById('valueIntegral').value);
@@ -431,18 +548,106 @@ window.saveSettings = async function() {
   showLoading(true);
   
   try {
-    await callAPI('/settings', 'PUT', {
+    await API.updateSettings({
       value12h,
       valueIntegral
     });
-    
-    // Reload settings
-    window.dataCache.settings = await callAPI('/settings');
     
     showLoading(false);
     alert('Configurações salvas com sucesso!');
   } catch (error) {
     alert('Erro ao salvar configurações: ' + error.message);
+    showLoading(false);
+  }
+};
+
+// Override exportToCSV
+const originalExportToCSV = window.exportToCSV;
+window.exportToCSV = async function() {
+  if (!window.currentMonthId) {
+    alert('Selecione um mês para exportar.');
+    return;
+  }
+  
+  showLoading(true);
+  
+  try {
+    const months = await API.getMonths();
+    const month = months.find(m => m.id === window.currentMonthId);
+    const shifts = await API.getShifts(window.currentMonthId);
+    const reservations = await API.getReservations(window.currentMonthId);
+    const users = await API.getUsers();
+    const settings = await API.getSettings();
+    
+    const daysInMonth = new Date(month.year, month.month, 0).getDate();
+    
+    // Build CSV
+    let csv = 'NOME,CPF,';
+    for (let day = 1; day <= daysInMonth; day++) {
+      csv += `${day.toString().padStart(2, '0')},`;
+    }
+    csv += 'VALOR,CONFLITOS\n';
+    
+    // For each user
+    users.forEach(user => {
+      const userReservations = reservations.filter(r => r.userId === user.id);
+      
+      if (userReservations.length === 0) return;
+      
+      csv += `${user.fullName},${user.cpf},`;
+      
+      let totalValue = 0;
+      const conflicts = [];
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayReservations = userReservations.filter(r => {
+          const shift = shifts.find(s => s.id === r.shiftId);
+          return shift && shift.day === day;
+        });
+        
+        if (dayReservations.length === 0) {
+          csv += ',';
+        } else {
+          const types = dayReservations.map(r => {
+            const shift = shifts.find(s => s.id === r.shiftId);
+            return shift ? shift.type : '';
+          });
+          
+          csv += types.join('+') + ',';
+          
+          // Calculate value
+          types.forEach(type => {
+            if (type === 'I') {
+              totalValue += settings.valueIntegral || 250;
+            } else {
+              totalValue += settings.value12h || 125;
+            }
+          });
+          
+          // Check conflicts
+          if (types.includes('I') && types.length > 1) {
+            conflicts.push(`Dia ${day}: Integral + outro turno`);
+          } else if (types.includes('D') && types.includes('N')) {
+            conflicts.push(`Dia ${day}: Diurno + Noturno`);
+          }
+        }
+      }
+      
+      csv += `${totalValue.toFixed(2)},`;
+      csv += conflicts.length > 0 ? `"${conflicts.join('; ')}"` : 'Nenhum';
+      csv += '\n';
+    });
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `escalas_${month.month}_${month.year}.csv`;
+    link.click();
+    
+    showLoading(false);
+  } catch (error) {
+    alert('Erro ao exportar CSV: ' + error.message);
     showLoading(false);
   }
 };
