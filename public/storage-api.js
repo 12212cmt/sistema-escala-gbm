@@ -1,13 +1,11 @@
 // ==================== STORAGE-API.JS ====================
 // Intercepta localStorage e sincroniza com a API do servidor
-// Permite que o código existente funcione sem modificações
 
-(function() {
+(async function() {
   'use strict';
   
   const API_BASE_URL = window.location.origin + '/api';
   const CACHE = {};
-  let isInitialized = false;
   
   // ==================== HELPER FUNCTIONS ====================
   
@@ -34,162 +32,146 @@
       return result.data;
     } catch (error) {
       console.error('Erro na API:', error);
-      throw error;
+      return null;
     }
   }
   
-  // ==================== LOAD ALL DATA FROM API ====================
+  // ==================== LOAD DATA FROM API ====================
   
-  async function loadAllDataFromAPI() {
-    if (isInitialized) return;
+  console.log('🔄 Carregando dados da API...');
+  
+  try {
+    const [users, months, shifts, reservations, settings] = await Promise.all([
+      callAPI('/users'),
+      callAPI('/months'),
+      callAPI('/shifts'),
+      callAPI('/reservations'),
+      callAPI('/settings')
+    ]);
     
-    try {
-      // Load all data from API into cache
-      const [users, months, shifts, reservations, settings] = await Promise.all([
-        callAPI('/users'),
-        callAPI('/months'),
-        callAPI('/shifts'),
-        callAPI('/reservations'),
-        callAPI('/settings')
-      ]);
-      
-      CACHE['users'] = JSON.stringify(users);
-      CACHE['months'] = JSON.stringify(months);
-      CACHE['shifts'] = JSON.stringify(shifts);
-      CACHE['reservations'] = JSON.stringify(reservations);
-      CACHE['settings'] = JSON.stringify(settings);
-      
-      isInitialized = true;
-    } catch (error) {
-      console.error('Erro ao carregar dados da API:', error);
-    }
-  }
-  
-  // ==================== SYNC FUNCTIONS ====================
-  
-  async function syncUsersToAPI(users) {
-    // Sync each user
-    for (const user of users) {
-      if (user.id) {
-        // Update existing user
-        await callAPI(`/users/${user.id}`, 'PUT', user);
-      } else {
-        // Create new user
-        await callAPI('/users', 'POST', user);
-      }
-    }
-  }
-  
-  async function syncMonthsToAPI(months) {
-    for (const month of months) {
-      if (month.id) {
-        await callAPI(`/months/${month.id}`, 'PUT', month);
-      } else {
-        await callAPI('/months', 'POST', { year: month.year, month: month.month });
-      }
-    }
-  }
-  
-  async function syncShiftsToAPI(shifts) {
-    for (const shift of shifts) {
-      if (shift.id) {
-        await callAPI(`/shifts/${shift.id}`, 'PUT', shift);
-      }
-    }
-  }
-  
-  async function syncReservationsToAPI(reservations) {
-    // Get current reservations from API
-    const currentReservations = await callAPI('/reservations');
+    // Populate cache with API data
+    if (users) CACHE['users'] = JSON.stringify(users);
+    if (months) CACHE['months'] = JSON.stringify(months);
+    if (shifts) CACHE['shifts'] = JSON.stringify(shifts);
+    if (reservations) CACHE['reservations'] = JSON.stringify(reservations);
+    if (settings) CACHE['settings'] = JSON.stringify(settings);
     
-    // Delete reservations that don't exist in the new list
-    for (const current of currentReservations) {
-      if (!reservations.find(r => r.id === current.id)) {
-        await callAPI(`/reservations/${current.id}`, 'DELETE');
-      }
-    }
-    
-    // Create new reservations
-    for (const reservation of reservations) {
-      if (!currentReservations.find(r => r.id === reservation.id)) {
-        await callAPI('/reservations', 'POST', {
-          shiftId: reservation.shiftId,
-          userId: reservation.userId
-        });
-      }
-    }
-  }
-  
-  async function syncSettingsToAPI(settings) {
-    await callAPI('/settings', 'PUT', settings);
+    console.log('✅ Dados carregados da API:', {
+      users: users?.length || 0,
+      months: months?.length || 0,
+      shifts: shifts?.length || 0,
+      reservations: reservations?.length || 0
+    });
+  } catch (error) {
+    console.error('❌ Erro ao carregar dados da API:', error);
   }
   
   // ==================== OVERRIDE localStorage ====================
   
   const originalSetItem = Storage.prototype.setItem;
   const originalGetItem = Storage.prototype.getItem;
-  const originalRemoveItem = Storage.prototype.removeItem;
-  const originalClear = Storage.prototype.clear;
   
   Storage.prototype.setItem = function(key, value) {
-    // Update cache
+    console.log(`💾 localStorage.setItem("${key}")`);
+    
+    // Update cache immediately
     CACHE[key] = value;
     
-    // Sync to API asynchronously
+    // Sync to API in background
     (async () => {
       try {
         const data = JSON.parse(value);
         
         switch(key) {
           case 'users':
-            await syncUsersToAPI(data);
+            // Sync users
+            for (const user of data) {
+              if (user.id) {
+                await callAPI(`/users/${user.id}`, 'PUT', user);
+              } else {
+                const newUser = await callAPI('/users', 'POST', user);
+                if (newUser) {
+                  user.id = newUser.id;
+                }
+              }
+            }
             break;
+            
           case 'months':
-            await syncMonthsToAPI(data);
+            // Sync months
+            for (const month of data) {
+              if (month.id) {
+                await callAPI(`/months/${month.id}`, 'PUT', month);
+              } else {
+                const newMonth = await callAPI('/months', 'POST', { year: month.year, month: month.month });
+                if (newMonth) {
+                  month.id = newMonth.id;
+                }
+              }
+            }
             break;
+            
           case 'shifts':
-            await syncShiftsToAPI(data);
+            // Shifts are created automatically by the server
             break;
+            
           case 'reservations':
-            await syncReservationsToAPI(data);
+            // Sync reservations
+            const currentReservations = await callAPI('/reservations');
+            
+            // Delete removed reservations
+            if (currentReservations) {
+              for (const current of currentReservations) {
+                if (!data.find(r => r.id === current.id)) {
+                  await callAPI(`/reservations/${current.id}`, 'DELETE');
+                }
+              }
+            }
+            
+            // Create new reservations
+            for (const reservation of data) {
+              if (!currentReservations?.find(r => r.id === reservation.id)) {
+                const newRes = await callAPI('/reservations', 'POST', {
+                  shiftId: reservation.shiftId,
+                  userId: reservation.userId
+                });
+                if (newRes) {
+                  reservation.id = newRes.id;
+                }
+              }
+            }
             break;
+            
           case 'settings':
-            await syncSettingsToAPI(data);
+            await callAPI('/settings', 'PUT', data);
             break;
         }
         
-        // Reload data from API to ensure consistency
-        await loadAllDataFromAPI();
+        console.log(`✅ Sincronizado "${key}" com a API`);
       } catch (error) {
-        console.error(`Erro ao sincronizar ${key}:`, error);
+        console.error(`❌ Erro ao sincronizar "${key}":`, error);
       }
     })();
     
-    // Don't actually save to localStorage
     return;
   };
   
   Storage.prototype.getItem = function(key) {
-    // Return from cache
-    return CACHE[key] || null;
+    const value = CACHE[key] || null;
+    console.log(`📖 localStorage.getItem("${key}"):`, value ? 'encontrado' : 'não encontrado');
+    return value;
   };
   
   Storage.prototype.removeItem = function(key) {
+    console.log(`🗑️ localStorage.removeItem("${key}")`);
     delete CACHE[key];
   };
   
   Storage.prototype.clear = function() {
+    console.log(`🗑️ localStorage.clear()`);
     Object.keys(CACHE).forEach(key => delete CACHE[key]);
   };
   
-  // ==================== INITIALIZATION ====================
-  
-  // Load data when page loads
-  window.addEventListener('DOMContentLoaded', async () => {
-    await loadAllDataFromAPI();
-  });
-  
-  // Expose reload function for manual refresh
-  window.reloadDataFromAPI = loadAllDataFromAPI;
+  console.log('✅ storage-api.js inicializado com sucesso!');
   
 })();
