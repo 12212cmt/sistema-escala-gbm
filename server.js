@@ -10,7 +10,7 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Helper function to read data
 async function readData() {
@@ -329,7 +329,13 @@ app.put('/api/settings', async (req, res) => {
 // ==================== SERVER ====================
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('Error sending file:', err);
+      res.status(500).send('Erro ao carregar a página. Verifique se a pasta public existe.');
+    }
+  });
 });
 
 app.listen(PORT, () => {
