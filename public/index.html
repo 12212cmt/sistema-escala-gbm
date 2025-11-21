@@ -709,7 +709,6 @@
     }
   }
 </style>
-<script src="api.js"></script>
 </head>
 <body>
 
@@ -1011,10 +1010,20 @@ let editingShift = null;
 
 // Initialize default data
 function initializeData() {
-  // Data is now managed by the server
-}
+  // Users
+  if (!localStorage.getItem('escalas_users')) {
+    const defaultUsers = [
+      {
+        id: 1,
+        fullName: 'Gestor do Sistema',
+        cpf: '000.000.000-00',
+        login: 'gestor',
+        password: 'admin',
+        isAdmin: true,
+        isActive: true
+      }
     ];
-    // Data saved via API
+    localStorage.setItem('escalas_users', JSON.stringify(defaultUsers));
   }
   
   // Settings
@@ -1023,27 +1032,27 @@ function initializeData() {
       value12h: 125.00,
       valueIntegral: 250.00
     };
-    // Data saved via API
+    localStorage.setItem('escalas_settings', JSON.stringify(defaultSettings));
   }
   
   // Months
   if (!localStorage.getItem('escalas_months')) {
-    // Data saved via API
+    localStorage.setItem('escalas_months', JSON.stringify([]));
   }
   
   // Shifts
   if (!localStorage.getItem('escalas_shifts')) {
-    // Data saved via API
+    localStorage.setItem('escalas_shifts', JSON.stringify([]));
   }
   
   // Reservations
   if (!localStorage.getItem('escalas_reservations')) {
-    // Data saved via API
+    localStorage.setItem('escalas_reservations', JSON.stringify([]));
   }
 }
 
 // ==================== AUTHENTICATION ====================
-async function handleLogin() {
+function handleLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
   
@@ -1052,14 +1061,13 @@ async function handleLogin() {
     return;
   }
   
-  showLoading(true);
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
+  const user = users.find(u => u.login === username && u.password === password && u.isActive);
   
-  try {
-    const user = await API.login(username, password);
-    if (!user) {
-      alert(\'Usuário ou senha inválidos, ou usuário desativado.\');
-      return;
-    }
+  if (!user) {
+    alert('Usuário ou senha inválidos, ou usuário desativado.');
+    return;
+  }
   
   currentUser = user;
   document.getElementById('loginScreen').classList.add('hidden');
@@ -1069,11 +1077,6 @@ async function handleLogin() {
   
   setupInterface();
   loadMonthsDropdown();
-  } catch (error) {
-    // Error already shown
-  } finally {
-    showLoading(false);
-  }
 }
 
 function handleLogout() {
@@ -1130,8 +1133,8 @@ function switchTab(tabName) {
 }
 
 // ==================== MONTHS ====================
-async function loadMonthsDropdown() {
-  const months = await API.getMonths();
+function loadMonthsDropdown() {
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const select = document.getElementById('monthSelect');
   
   select.innerHTML = '<option value="">Selecione um mês</option>';
@@ -1165,11 +1168,11 @@ function closeCreateMonthModal() {
   document.getElementById('createMonthModal').classList.remove('active');
 }
 
-async function createMonth() {
+function createMonth() {
   const year = parseInt(document.getElementById('newMonthYear').value);
   const month = parseInt(document.getElementById('newMonthMonth').value);
   
-  const months = await API.getMonths();
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   
   // Check if month already exists
   if (months.find(m => m.year === year && m.month === month)) {
@@ -1187,11 +1190,11 @@ async function createMonth() {
   };
   
   months.push(newMonth);
-  // Data saved via API
+  localStorage.setItem('escalas_months', JSON.stringify(months));
   
   // Create shifts for this month
   const daysInMonth = new Date(year, month, 0).getDate();
-  const shifts = await API.getShifts(currentMonthId);
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts'));
   const shiftTypes = ['I', 'D', 'N'];
   
   for (let day = 1; day <= daysInMonth; day++) {
@@ -1207,30 +1210,30 @@ async function createMonth() {
     });
   }
   
-  // Data saved via API
+  localStorage.setItem('escalas_shifts', JSON.stringify(shifts));
   
   closeCreateMonthModal();
   loadMonthsDropdown();
   alert('Mês criado com sucesso!');
 }
 
-async function toggleMonthActive() {
+function toggleMonthActive() {
   if (!currentMonthId) {
     alert('Selecione um mês primeiro.');
     return;
   }
   
-  const months = await API.getMonths();
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const month = months.find(m => m.id === currentMonthId);
   
   month.isActive = !month.isActive;
   
-  // Data saved via API
+  localStorage.setItem('escalas_months', JSON.stringify(months));
   loadMonthsDropdown();
   loadSchedule();
 }
 
-async function deleteMonth() {
+function deleteMonth() {
   if (!currentMonthId) {
     alert('Selecione um mês primeiro.');
     return;
@@ -1241,22 +1244,22 @@ async function deleteMonth() {
   }
   
   // Remove month
-  let months = await API.getMonths();
+  let months = JSON.parse(localStorage.getItem('escalas_months'));
   months = months.filter(m => m.id !== currentMonthId);
-  // Data saved via API
+  localStorage.setItem('escalas_months', JSON.stringify(months));
   
   // Get shift IDs before removing them
-  let shifts = await API.getShifts(currentMonthId);
+  let shifts = JSON.parse(localStorage.getItem('escalas_shifts'));
   const shiftIds = shifts.filter(s => s.monthId === currentMonthId).map(s => s.id);
   
   // Remove all shifts for this month
   shifts = shifts.filter(s => s.monthId !== currentMonthId);
-  // Data saved via API
+  localStorage.setItem('escalas_shifts', JSON.stringify(shifts));
   
   // Remove all reservations for this month
-  let reservations = await API.getReservations(currentMonthId);
+  let reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
   reservations = reservations.filter(r => !shiftIds.includes(r.shiftId));
-  // Data saved via API
+  localStorage.setItem('escalas_reservations', JSON.stringify(reservations));
   
   currentMonthId = null;
   loadMonthsDropdown();
@@ -1264,7 +1267,7 @@ async function deleteMonth() {
 }
 
 // ==================== SCHEDULE ====================
-async function loadSchedule() {
+function loadSchedule() {
   currentMonthId = parseInt(document.getElementById('monthSelect').value);
   
   if (!currentMonthId) {
@@ -1272,10 +1275,10 @@ async function loadSchedule() {
     return;
   }
   
-  const months = await API.getMonths();
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const month = months.find(m => m.id === currentMonthId);
-  const shifts = await API.getShifts(currentMonthId).filter(s => s.monthId === currentMonthId);
-  const reservations = await API.getReservations(currentMonthId);
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts')).filter(s => s.monthId === currentMonthId);
+  const reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
   
   // Update month status
   let statusHTML = '<div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">';
@@ -1393,12 +1396,12 @@ async function loadSchedule() {
   document.getElementById('scheduleContainer').innerHTML = html;
 }
 
-async function handleSlotClick(shiftId, reservationId) {
-  const months = await API.getMonths();
+function handleSlotClick(shiftId, reservationId) {
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const month = months.find(m => m.id === currentMonthId);
-  const shifts = await API.getShifts(currentMonthId);
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts'));
   const shift = shifts.find(s => s.id === shiftId);
-  const reservations = await API.getReservations(currentMonthId);
+  const reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
   
   // If clicking on a reservation
   if (reservationId) {
@@ -1409,7 +1412,7 @@ async function handleSlotClick(shiftId, reservationId) {
       if (confirm('Deseja remover sua reserva?')) {
         const index = reservations.findIndex(r => r.id === reservationId);
         reservations.splice(index, 1);
-        // Data saved via API
+        localStorage.setItem('escalas_reservations', JSON.stringify(reservations));
         loadSchedule();
       }
       return;
@@ -1420,7 +1423,7 @@ async function handleSlotClick(shiftId, reservationId) {
       if (confirm(`Remover reserva de ${reservation.userName}?`)) {
         const index = reservations.findIndex(r => r.id === reservationId);
         reservations.splice(index, 1);
-        // Data saved via API
+        localStorage.setItem('escalas_reservations', JSON.stringify(reservations));
         loadSchedule();
       }
       return;
@@ -1467,7 +1470,7 @@ async function handleSlotClick(shiftId, reservationId) {
     createdAt: new Date().toISOString()
   });
   
-  // Data saved via API
+  localStorage.setItem('escalas_reservations', JSON.stringify(reservations));
   loadSchedule();
 }
 
@@ -1475,7 +1478,7 @@ async function handleSlotClick(shiftId, reservationId) {
 function openShiftCapacityModal(shiftId) {
   if (!currentUser.isAdmin) return;
   
-  const shifts = await API.getShifts(currentMonthId);
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts'));
   const shift = shifts.find(s => s.id === shiftId);
   
   editingShift = shift;
@@ -1493,7 +1496,7 @@ function closeShiftCapacityModal() {
   editingShift = null;
 }
 
-async function saveShiftCapacity() {
+function saveShiftCapacity() {
   const newCapacity = parseInt(document.getElementById('shiftCapacityValue').value);
   
   if (newCapacity < 0 || newCapacity > 3) {
@@ -1501,11 +1504,11 @@ async function saveShiftCapacity() {
     return;
   }
   
-  const shifts = await API.getShifts(currentMonthId);
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts'));
   const shift = shifts.find(s => s.id === editingShift.id);
   
   // Check if reducing capacity would exceed current reservations
-  const reservations = await API.getReservations(currentMonthId);
+  const reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
   const shiftReservations = reservations.filter(r => r.shiftId === shift.id);
   
   if (newCapacity < shiftReservations.length) {
@@ -1514,15 +1517,15 @@ async function saveShiftCapacity() {
   }
   
   shift.capacity = newCapacity;
-  // Data saved via API
+  localStorage.setItem('escalas_shifts', JSON.stringify(shifts));
   
   closeShiftCapacityModal();
   loadSchedule();
 }
 
 // ==================== USERS MANAGEMENT ====================
-async function loadUsersTable() {
-  const users = await API.getUsers();
+function loadUsersTable() {
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
   const tbody = document.getElementById('usersTableBody');
   
   tbody.innerHTML = '';
@@ -1553,7 +1556,7 @@ async function loadUsersTable() {
 
 function openUserModal(userId = null) {
   if (userId) {
-    const users = await API.getUsers();
+    const users = JSON.parse(localStorage.getItem('escalas_users'));
     const user = users.find(u => u.id === userId);
     
     document.getElementById('userModalTitle').textContent = 'Editar Usuário';
@@ -1580,7 +1583,7 @@ function closeUserModal() {
   document.getElementById('userModal').classList.remove('active');
 }
 
-async function saveUser() {
+function saveUser() {
   const fullName = document.getElementById('userFullName').value.trim();
   const cpf = document.getElementById('userCPF').value.trim();
   const login = document.getElementById('userLogin').value.trim();
@@ -1593,7 +1596,7 @@ async function saveUser() {
     return;
   }
   
-  const users = await API.getUsers();
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
   
   if (editId) {
     // Edit existing user
@@ -1624,7 +1627,7 @@ async function saveUser() {
     });
   }
   
-  // Data saved via API
+  localStorage.setItem('escalas_users', JSON.stringify(users));
   closeUserModal();
   loadUsersTable();
 }
@@ -1633,39 +1636,39 @@ function editUser(userId) {
   openUserModal(userId);
 }
 
-async function toggleUserStatus(userId) {
-  const users = await API.getUsers();
+function toggleUserStatus(userId) {
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
   const user = users.find(u => u.id === userId);
   
   user.isActive = !user.isActive;
   
-  // Data saved via API
+  localStorage.setItem('escalas_users', JSON.stringify(users));
   loadUsersTable();
 }
 
-async function deleteUser(userId) {
+function deleteUser(userId) {
   if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
     return;
   }
   
-  const users = await API.getUsers();
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
   const index = users.findIndex(u => u.id === userId);
   
   users.splice(index, 1);
   
-  // Data saved via API
+  localStorage.setItem('escalas_users', JSON.stringify(users));
   loadUsersTable();
 }
 
 // ==================== SETTINGS ====================
-async function loadSettings() {
-  const settings = await API.getSettings();
+function loadSettings() {
+  const settings = JSON.parse(localStorage.getItem('escalas_settings'));
   
   document.getElementById('value12h').value = settings.value12h;
   document.getElementById('valueIntegral').value = settings.valueIntegral;
 }
 
-async function saveSettings() {
+function saveSettings() {
   const value12h = parseFloat(document.getElementById('value12h').value);
   const valueIntegral = parseFloat(document.getElementById('valueIntegral').value);
   
@@ -1679,23 +1682,23 @@ async function saveSettings() {
     valueIntegral: valueIntegral
   };
   
-  // Data saved via API
+  localStorage.setItem('escalas_settings', JSON.stringify(settings));
   alert('Configurações salvas com sucesso!');
 }
 
 // ==================== EXPORT CSV ====================
-async function exportToCSV() {
+function exportToCSV() {
   if (!currentMonthId) {
     alert('Selecione um mês primeiro.');
     return;
   }
   
-  const months = await API.getMonths();
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const month = months.find(m => m.id === currentMonthId);
-  const users = await API.getUsers();
-  const shifts = await API.getShifts(currentMonthId).filter(s => s.monthId === currentMonthId);
-  const reservations = await API.getReservations(currentMonthId);
-  const settings = await API.getSettings();
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts')).filter(s => s.monthId === currentMonthId);
+  const reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
+  const settings = JSON.parse(localStorage.getItem('escalas_settings'));
   
   const daysInMonth = new Date(month.year, month.month, 0).getDate();
   
@@ -1771,8 +1774,8 @@ async function exportToCSV() {
 }
 
 // ==================== DASHBOARD ====================
-async function loadDashboardMonths() {
-  const months = await API.getMonths();
+function loadDashboardMonths() {
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const select = document.getElementById('dashboardMonthSelect');
   
   select.innerHTML = '<option value="">Selecione um mês</option>';
@@ -1786,7 +1789,7 @@ async function loadDashboardMonths() {
   });
 }
 
-async function loadDashboard() {
+function loadDashboard() {
   const monthId = parseInt(document.getElementById('dashboardMonthSelect').value);
   
   if (!monthId) {
@@ -1794,12 +1797,12 @@ async function loadDashboard() {
     return;
   }
   
-  const months = await API.getMonths();
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const month = months.find(m => m.id === monthId);
-  const users = await API.getUsers();
-  const shifts = await API.getShifts(currentMonthId).filter(s => s.monthId === monthId);
-  const reservations = await API.getReservations(currentMonthId);
-  const settings = await API.getSettings();
+  const users = JSON.parse(localStorage.getItem('escalas_users'));
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts')).filter(s => s.monthId === monthId);
+  const reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
+  const settings = JSON.parse(localStorage.getItem('escalas_settings'));
   
   // Calculate statistics
   const totalShifts = shifts.length;
@@ -1908,8 +1911,8 @@ async function loadDashboard() {
 }
 
 // ==================== PROFILE ====================
-async function loadProfileMonths() {
-  const months = await API.getMonths();
+function loadProfileMonths() {
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const select = document.getElementById('profileMonthSelect');
   
   select.innerHTML = '<option value="">Selecione um mês</option>';
@@ -1926,13 +1929,13 @@ async function loadProfileMonths() {
   });
 }
 
-async function loadProfileInfo() {
+function loadProfileInfo() {
   document.getElementById('profileName').textContent = currentUser.fullName;
   document.getElementById('profileCPF').textContent = currentUser.cpf;
   document.getElementById('profileLogin').textContent = currentUser.login;
 }
 
-async function loadProfile() {
+function loadProfile() {
   const monthId = parseInt(document.getElementById('profileMonthSelect').value);
   
   if (!monthId) {
@@ -1940,11 +1943,11 @@ async function loadProfile() {
     return;
   }
   
-  const months = await API.getMonths();
+  const months = JSON.parse(localStorage.getItem('escalas_months'));
   const month = months.find(m => m.id === monthId);
-  const shifts = await API.getShifts(currentMonthId).filter(s => s.monthId === monthId);
-  const reservations = await API.getReservations(currentMonthId);
-  const settings = await API.getSettings();
+  const shifts = JSON.parse(localStorage.getItem('escalas_shifts')).filter(s => s.monthId === monthId);
+  const reservations = JSON.parse(localStorage.getItem('escalas_reservations'));
+  const settings = JSON.parse(localStorage.getItem('escalas_settings'));
   
   // Get user's reservations
   const userReservations = reservations.filter(r => r.userId === currentUser.id && shifts.find(s => s.id === r.shiftId));
