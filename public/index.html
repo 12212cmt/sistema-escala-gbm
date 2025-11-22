@@ -182,8 +182,11 @@
     <p class="hint">Usuário padrão: gestor / admin</p>
   </div>
 
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-client.js"></script>
+  
   <script>
-    const API_URL = window.location.origin + '/api';
     
     const form = document.getElementById('loginForm');
     const errorDiv = document.getElementById('error');
@@ -206,26 +209,28 @@
         loginBtn.disabled = true;
         errorDiv.classList.remove('show');
         
-        const response = await fetch(`${API_URL}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
+        // Buscar usuário no Supabase
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('login', username)
+          .eq('password', password)
+          .eq('isactive', true)
+          .single();
         
-        const result = await response.json();
+        if (error || !data) {
+          showError('Usuário ou senha incorretos');
+          return;
+        }
         
-        if (result.success) {
-          // Save user data
-          sessionStorage.setItem('user', JSON.stringify(result.data));
-          
-          // Redirect based on role
-          if (result.data.isAdmin) {
-            window.location.href = 'admin.html';
-          } else {
-            window.location.href = 'escalas.html';
-          }
+        // Salvar usuário
+        saveCurrentUser(data);
+        
+        // Redirecionar baseado no tipo
+        if (data.isadmin) {
+          window.location.href = 'admin.html';
         } else {
-          showError(result.error || 'Usuário ou senha incorretos');
+          window.location.href = 'escalas.html';
         }
       } catch (error) {
         console.error('Erro no login:', error);
@@ -245,10 +250,9 @@
     }
     
     // Check if already logged in
-    const user = sessionStorage.getItem('user');
-    if (user) {
-      const userData = JSON.parse(user);
-      window.location.href = userData.isAdmin ? 'admin.html' : 'escalas.html';
+    if (isLoggedIn()) {
+      const user = getCurrentUser();
+      window.location.href = user.isadmin ? 'admin.html' : 'escalas.html';
     }
   </script>
 </body>
