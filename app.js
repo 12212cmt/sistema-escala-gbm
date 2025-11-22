@@ -2,32 +2,28 @@
 const SUPABASE_URL = 'https://rizprzmjxrspctlivfyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpenByem1qeHJzcGN0bGl2ZnluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3ODA3NDQsImV4cCI6MjA3OTM1Njc0NH0.D-5G3eQTRr1bK607zOfvdDzomwJkRFvl8MHTJLsJuXg';
 
-// Variável global do cliente Supabase
-let supabaseClient;
+// Cliente Supabase
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Estado
 let currentUser = null;
 let currentProfile = null;
 
 // DOM
-let authView, appView, registerExtra;
+let authView = document.getElementById('authView');
+let appView = document.getElementById('appView');
+let registerExtra = document.getElementById('registerExtra');
 
 // Utilitário
 function warToEmail(w){ return `${w}@interno.project`; }
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', async () => {
-  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  authView = document.getElementById('authView');
-  appView = document.getElementById('appView');
-  registerExtra = document.getElementById('registerExtra');
-
   attachHandlers();
 
-  const { data } = await supabaseClient.auth.getSession();
-  if(data && data.session){
-    await fetchProfile(data.session.user);
+  const { user, error } = await supabaseClient.auth.getUser();
+  if(user){
+    await fetchProfile(user);
     showApp();
   } else {
     showAuth();
@@ -52,9 +48,9 @@ async function login(){
   if(!war || !pass){ alert('Preencha nome de guerra e senha'); return; }
   const email = warToEmail(war);
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+  const { user, error } = await supabaseClient.auth.signIn({ email, password: pass });
   if(error){ alert('Erro login: '+error.message); return; }
-  await fetchProfile(data.user);
+  await fetchProfile(user);
   showApp();
 }
 
@@ -67,22 +63,21 @@ async function register(){
   if(!war||!pass||!full||!cpf){ alert('Preencha todos os campos'); return; }
   const email = warToEmail(war);
 
-  const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+  const { user, error } = await supabaseClient.auth.signUp({ email, password: pass });
   if(error){ alert('Erro registro: '+error.message); return; }
 
-  const s = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-  if(s.error){ alert('Erro login após registro: '+s.error.message); return; }
+  const { user: loggedUser, error: signInError } = await supabaseClient.auth.signIn({ email, password: pass });
+  if(signInError){ alert('Erro login após registro: '+signInError.message); return; }
 
-  const user = s.data.user;
   const p = await supabaseClient.from('profiles').insert({
-    id: user.id,
+    id: loggedUser.id,
     warname: war,
     full_name: full,
     cpf: cpf
   });
   if(p.error){ alert('Erro criar perfil: '+p.error.message); return; }
 
-  await fetchProfile(user);
+  await fetchProfile(loggedUser);
   showApp();
 }
 
