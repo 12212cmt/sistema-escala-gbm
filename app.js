@@ -1,10 +1,11 @@
-// ====== CONFIGURAÇÃO ======
+// ===== CONFIGURAÇÃO =====
 const SUPABASE_URL = 'https://rizprzmjxrspctlivfyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpenByem1qeHJzcGN0bGl2ZnluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3ODA3NDQsImV4cCI6MjA3OTM1Njc0NH0.D-5G3eQTRr1bK607zOfvdDzomwJkRFvl8MHTJLsJuXg';
 
-let supabase; // será inicializado após DOM pronto
+// Variável global para o cliente Supabase
+let supabaseClient;
 
-// Estado global
+// Estado
 let currentUser = null;
 let currentProfile = null;
 let currentMonthId = null;
@@ -18,8 +19,8 @@ function warToEmail(w){ return `${w}@interno.project`; }
 // ---------- Inicialização ----------
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Inicializa supabase somente agora
-    supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Inicializa supabase só agora
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Referências DOM
     authView = document.getElementById('authView');
@@ -29,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     attachHandlers();
 
     // Checa sessão atual
-    const { data } = await supabase.auth.getSession();
+    const { data } = await supabaseClient.auth.getSession();
     if(data && data.session){
       await fetchProfile(data.session.user);
       showApp();
@@ -60,7 +61,7 @@ async function login(){
   const email = warToEmail(war);
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if(error){ alert('Erro login: '+error.message); return; }
     await fetchProfile(data.user);
     showApp();
@@ -80,17 +81,17 @@ async function register(){
 
   try {
     // Cadastro
-    const { data, error } = await supabase.auth.signUp({ email, password: pass });
+    const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
     if(error){ alert('Erro registro: '+error.message); return; }
 
     // login imediato
-    const s = await supabase.auth.signInWithPassword({ email, password: pass });
+    const s = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     if(s.error){ alert('Erro login após registro: '+s.error.message); return; }
 
     const user = s.data.user;
 
     // criar profile
-    const p = await supabase.from('profiles').insert({
+    const p = await supabaseClient.from('profiles').insert({
       id: user.id,
       warname: war,
       full_name: full,
@@ -110,7 +111,7 @@ async function register(){
 async function fetchProfile(user){
   currentUser = user;
   try {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
     if(error){ console.warn('Erro fetchProfile:', error); currentProfile = null; return; }
     currentProfile = data;
     document.getElementById('whoDisplay').textContent = currentProfile.full_name || currentProfile.warname;
@@ -121,7 +122,7 @@ async function fetchProfile(user){
 }
 
 async function logout(){
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   currentUser = null;
   currentProfile = null;
   showAuth();
