@@ -390,7 +390,7 @@
       if (!currentUser.isAdmin) {
         window.location.href = 'escalas.html';
       }
-      document.getElementById('headerUserName').textContent = currentUser.name;
+      document.getElementById('headerUserName').textContent = currentUser.fullName;
     }
     
     // Tab switching
@@ -531,7 +531,7 @@
             const div = document.createElement('div');
             div.className = 'user-item';
             div.innerHTML = `
-              <div class="user-name-item">${user.name}</div>
+              <div class="user-name-item">${user.fullName}</div>
               <div class="user-details">CPF: ${user.cpf} | Login: ${user.username} | ${user.isAdmin ? 'Gestor' : 'Usuário'}</div>
             `;
             container.appendChild(div);
@@ -548,10 +548,11 @@
     
     function closeUserModal() {
       document.getElementById('userModal').classList.remove('show');
-      document.getElementById('userName').value = '';
+      document.getElementById('modalUserName').value = '';
       document.getElementById('userCpf').value = '';
       document.getElementById('userUsername').value = '';
       document.getElementById('userPassword').value = '';
+
     }
     
     async function saveUser() {
