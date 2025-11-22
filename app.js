@@ -253,5 +253,5 @@ async function exportCSV(){
   URL.revokeObjectURL(url);
 }
 
-// Inicial
-init();
+// AQUI ESTÁ A CORREÇÃO: REMOVER init() e usar DOMContentLoaded
+document.addEventListener('DOMContentLoaded', init);
