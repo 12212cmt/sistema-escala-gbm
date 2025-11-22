@@ -1,5 +1,8 @@
 // ===== MOCK GLOBAL =====
-const users = {}; // { warname: { password, fullName, cpf, isAdmin } }
+// Usuário admin padrão
+const users = {
+    admin: { password: '1234', fullName: 'Administrador', cpf: '00000000000', isAdmin: true }
+};
 let currentUser = null;
 let currentMonth = null;
 
