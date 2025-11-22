@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Escala - Gestor</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+</head>
+<body>
+  <div id="root" class="container">
+    <div id="authView" class="card">
+      <h2>Entrar / Registrar</h2>
+      <input id="warname" placeholder="Nome de guerra" />
+      <input id="password" type="password" placeholder="Senha" />
+      <div class="row">
+        <button id="btnLogin">Entrar</button>
+        <button id="btnRegister">Registrar</button>
+      </div>
+      <p class="muted">Login com nome de guerra. Caso registre, informe nome completo e CPF no próximo passo.</p>
+      <div id="registerExtra" style="display:none">
+        <input id="fullName" placeholder="Nome completo" />
+        <input id="cpf" placeholder="CPF (somente números)" />
+        <button id="btnFinishRegister">Finalizar registro</button>
+      </div>
+    </div>
+
+    <div id="appView" style="display:none" class="card">
+      <div class="topbar">
+        <div><b id="whoDisplay"></b> (<span id="roleDisplay"></span>)</div>
+        <div>
+          <button id="btnLogout">Logout</button>
+        </div>
+      </div>
+
+      <div class="adminbar" id="adminControls" style="display:none">
+        <button id="btnCreateMonth">Criar mês</button>
+        <select id="monthsSelect"></select>
+        <button id="btnToggleActive">Ativar/Desativar</button>
+        <button id="btnToggleLock">Bloquear/Desbloquear</button>
+        <button id="btnExport">Export CSV</button>
+      </div>
+
+      <div id="statusBox"></div>
+      <div id="gridContainer"></div>
+      <div class="legend">Legendas: I = Integral (D+N). Até N pessoas por turno (configurável).</div>
+    </div>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
