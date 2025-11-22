@@ -2,18 +2,25 @@ import { supabase } from './supabaseClient.js'
 
 let currentUser = null;
 
+// LOGIN
 window.loginUser = async function() {
-  const name = document.getElementById('name').value
-  const password = document.getElementById('password').value
+  const name = document.getElementById('name').value.trim()
+  const password = document.getElementById('password').value.trim()
 
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .eq('name', name)
+    .ilike('name', name) // ignora maiúsculas/minúsculas
     .single()
 
-  if (error || !data) return alert('Usuário não encontrado')
-  if (data.password !== password) return alert('Senha incorreta')
+  if (error) {
+    console.log('Erro no login:', error)
+    return alert('Usuário não encontrado')
+  }
+
+  if (!data) return alert('Usuário não encontrado')
+
+  if (data.password.trim() !== password) return alert('Senha incorreta')
 
   currentUser = data
   localStorage.setItem('user', JSON.stringify(currentUser))
@@ -24,6 +31,7 @@ window.loginUser = async function() {
   loadCalendar()
 }
 
+// LOGOUT
 window.logoutUser = function() {
   localStorage.removeItem('user')
   currentUser = null
@@ -31,33 +39,50 @@ window.logoutUser = function() {
   document.getElementById('app').style.display = 'none'
 }
 
+// CARREGAR CALENDÁRIO
 async function loadCalendar() {
   const today = new Date()
   const month = today.getMonth() + 1
   const year = today.getFullYear()
 
-  const { data: monthData } = await supabase
+  const { data: monthData, error: monthError } = await supabase
     .from('months')
     .select('*')
     .eq('year', year)
     .eq('month', month)
     .single()
 
+  if (monthError) {
+    console.log('Erro ao buscar mês:', monthError)
+    return document.getElementById('calendar').innerHTML = 'Erro ao carregar mês'
+  }
+
   if (!monthData) return document.getElementById('calendar').innerHTML = 'Mês não encontrado'
 
-  const { data: days } = await supabase
+  const { data: days, error: daysError } = await supabase
     .from('days')
     .select('*')
     .eq('month_id', monthData.id)
 
-  const { data: turns } = await supabase
+  if (daysError) {
+    console.log('Erro ao buscar dias:', daysError)
+    return document.getElementById('calendar').innerHTML = 'Erro ao carregar dias'
+  }
+
+  const { data: turns, error: turnsError } = await supabase
     .from('turns')
     .select('*')
     .in('day_id', days.map(d => d.id))
 
+  if (turnsError) {
+    console.log('Erro ao buscar turnos:', turnsError)
+    return document.getElementById('calendar').innerHTML = 'Erro ao carregar turnos'
+  }
+
   renderCalendar(days, turns)
 }
 
+// RENDERIZAÇÃO DO CALENDÁRIO
 function renderCalendar(days, turns) {
   const container = document.getElementById('calendar')
   container.innerHTML = ''
@@ -96,6 +121,7 @@ function renderCalendar(days, turns) {
   })
 }
 
+// ATUALIZAÇÃO DE TURNO
 async function selectTurn(turnId, slot, userId) {
   const update = {}
   update[`slot${slot}`] = userId
@@ -105,7 +131,10 @@ async function selectTurn(turnId, slot, userId) {
     .update(update)
     .eq('id', turnId)
 
-  if (error) return alert('Erro ao atualizar')
+  if (error) {
+    console.log('Erro ao atualizar turno:', error)
+    return alert('Erro ao atualizar')
+  }
 
   loadCalendar()
 }
