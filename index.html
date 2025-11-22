@@ -2,89 +2,80 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Escala Gestor</title>
-<style>
-body { font-family: sans-serif; padding: 10px; max-width: 600px; margin: auto; }
-button { padding: 10px; margin: 5px 0; font-size: 16px; cursor: pointer; }
-.dayCard { border: 1px solid #8883; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-</style>
+<title>Escala Simples</title>
 </head>
 <body>
 
-<h2>Gestor - Escala</h2>
-<button id="createMonthBtn">Criar mês</button>
-<div id="calendar"></div>
+<h2>Entrar</h2>
+<input id="name" placeholder="Seu nome">
+<input id="code" placeholder="Código" type="password">
+<button id="loginBtn">Entrar</button>
+
+<div id="app" style="display:none;">
+  <h2 id="userLabel"></h2>
+  <div id="calendar"></div>
+</div>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const supabaseUrl = 'https://exhfpeeslhjpvfmbonyz.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4aGZwZWVzbGhqcHZmbWJvbnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MzEyOTcsImV4cCI6MjA3OTQwNzI5N30.zwLuyDV8vuZhH0vSl22CmK0QxXHyzY3jcJMNA2wt-zo'
-
+const supabaseKey = 'SUA_CHAVE_ANON'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-document.getElementById('createMonthBtn').addEventListener('click', async () => {
-  const month = parseInt(prompt('Número do mês (1-12)'))
-  const year = parseInt(prompt('Ano (ex: 2025)'))
-  if (!month || !year) return alert('Mês ou ano inválido')
+const loginBtn = document.getElementById('loginBtn')
+loginBtn.addEventListener('click', async () => {
+  const name = document.getElementById('name').value.trim()
+  const code = document.getElementById('code').value.trim()
 
-  const { error } = await supabase.from('months').insert([{ month, year }])
-  if (error) return alert('Erro: ' + error.message)
-  alert('Mês criado com sucesso!')
-  loadCalendar()
+  // Busca usuário na tabela simples "users"
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('name', name)
+    .single()
+
+  if (error || !data) return alert('Usuário não encontrado')
+  if (data.password !== code) return alert('Código incorreto')
+
+  // Login bem-sucedido
+  document.getElementById('loginBtn').style.display = 'none'
+  document.getElementById('name').style.display = 'none'
+  document.getElementById('code').style.display = 'none'
+
+  document.getElementById('app').style.display = 'block'
+  document.getElementById('userLabel').innerText = `Olá, ${name}`
+
+  loadCalendar(name)
 })
 
-async function loadCalendar() {
-  const today = new Date()
-  const month = today.getMonth() + 1
-  const year = today.getFullYear()
+async function loadCalendar(name) {
+  // Busca apenas os registros do usuário
+  const { data: days } = await supabase
+    .from('days')
+    .select('*')
+    .eq('user_name', name)  // assumindo que você tenha essa coluna
+  const { data: turns } = await supabase
+    .from('turns')
+    .select('*')
+    .in('day_id', days.map(d => d.id))
 
-  const { data: monthData } = await supabase
-    .from('months').select('*').eq('year', year).eq('month', month).single()
-
-  if (!monthData) { document.getElementById('calendar').innerHTML = 'Nenhum mês encontrado'; return }
-
-  const { data: days } = await supabase.from('days').select('*').eq('month_id', monthData.id)
-  const { data: turns } = await supabase.from('turns').select('*').in('day_id', days.map(d => d.id))
-
-  renderCalendar(days, turns)
-}
-
-function renderCalendar(days, turns) {
   const container = document.getElementById('calendar')
   container.innerHTML = ''
 
   days.forEach(day => {
     const dayTurns = turns.filter(t => t.day_id === day.id)
     const card = document.createElement('div')
-    card.className = 'dayCard'
-    card.innerHTML = `<h3>${day.date} (${day.weekday || ''})</h3>`
-
+    card.innerHTML = `<h3>${day.date} (${day.weekday})</h3>`
     dayTurns.forEach(t => {
-      const slots = [t.slot1, t.slot2, t.slot3]
       const section = document.createElement('div')
-      section.innerHTML = `<b>${t.type.toUpperCase()}</b>`
-
-      slots.forEach((slot, i) => {
-        const btn = document.createElement('button')
-        btn.innerText = slot ? slot : 'Disponível'
-        btn.onclick = async () => {
-          const update = {}; update[`slot${i+1}`] = slot ? null : 'Gestor'
-          await supabase.from('turns').update(update).eq('id', t.id)
-          loadCalendar()
-        }
-        section.appendChild(btn)
-      })
-
+      section.innerHTML = `<b>${t.type.toUpperCase()}</b> - ${t.slot1 || 'Disponível'}`
       card.appendChild(section)
     })
-
     container.appendChild(card)
   })
 }
-
-loadCalendar()
 </script>
+
 </body>
 </html>
