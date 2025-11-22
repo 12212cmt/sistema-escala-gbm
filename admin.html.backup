@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Admin - GBM</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f5f5f5;
+      padding-bottom: 80px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .user-name {
+      font-weight: 600;
+      font-size: 18px;
+    }
+    
+    .btn-logout {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    
+    .tab.active {
+      background: white;
+      color: #667eea;
+      font-weight: 600;
+    }
+    
+    .content {
+      padding: 15px;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .btn-danger {
+      background: #f44336;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      color: #666;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .month-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .month-info {
+      flex: 1;
+    }
+    
+    .month-name {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    
+    .month-status {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .month-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn-small {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .btn-toggle {
+      background: #4caf50;
+      color: white;
+    }
+    
+    .btn-toggle.inactive {
+      background: #ff9800;
+    }
+    
+    .btn-delete {
+      background: #f44336;
+      color: white;
+    }
+    
+    .user-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    
+    .user-name-item {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+    
+    .user-details {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">
+      <div class="user-name" id="headerUserName">Admin</div>
+      <button class="btn-logout" onclick="logout()">Sair</button>
+    </div>
+    
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('meses')">📅 Meses</button>
+      <button class="tab" onclick="switchTab('usuarios')">👥 Usuários</button>
+      <button class="tab" onclick="switchTab('escalas')">📋 Ver Escalas</button>
+      <button class="tab" onclick="switchTab('config')">⚙️ Configurações</button>
+    </div>
+  </div>
+  
+  <div class="content">
+    <!-- Tab Meses -->
+    <div class="tab-content active" id="tab-meses">
+      <div class="card">
+        <div class="card-title">Criar Novo Mês</div>
+        <div class="form-group">
+          <label>Mês</label>
+          <select id="newMonth">
+            <option value="1">Janeiro</option>
+            <option value="2">Fevereiro</option>
+            <option value="3">Março</option>
+            <option value="4">Abril</option>
+            <option value="5">Maio</option>
+            <option value="6">Junho</option>
+            <option value="7">Julho</option>
+            <option value="8">Agosto</option>
+            <option value="9">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ano</label>
+          <input type="number" id="newYear" value="2025">
+        </div>
+        <button class="btn" onclick="createMonth()">Criar Mês</button>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Meses Cadastrados</div>
+        <div id="monthsList"></div>
+      </div>
+    </div>
+    
+    <!-- Tab Usuários -->
+    <div class="tab-content" id="tab-usuarios">
+      <div class="card">
+        <div class="card-title">Novo Usuário</div>
+        <button class="btn" onclick="showUserModal()">+ Adicionar Usuário</button>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Usuários Cadastrados</div>
+        <div id="usersList"></div>
+      </div>
+    </div>
+    
+    <!-- Tab Escalas -->
+    <div class="tab-content" id="tab-escalas">
+      <div class="card">
+        <p style="text-align:center; color:#666; padding:20px;">
+          Acesse a página de escalas para visualizar e gerenciar
+        </p>
+        <button class="btn" onclick="window.location.href='escalas.html'">Ir para Escalas</button>
+      </div>
+    </div>
+    
+    <!-- Tab Configurações -->
+    <div class="tab-content" id="tab-config">
+      <div class="card">
+        <div class="card-title">Valores dos Plantões</div>
+        <div class="form-group">
+          <label>Valor 12h (R$)</label>
+          <input type="number" id="value12h" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Valor Integral (R$)</label>
+          <input type="number" id="valueIntegral" step="0.01">
+        </div>
+        <button class="btn" onclick="saveSettings()">Salvar Configurações</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal Usuário -->
+  <div class="modal" id="userModal">
+    <div class="modal-content">
+      <div class="modal-title">Adicionar Usuário</div>
+      <div class="form-group">
+        <label>Nome Completo</label>
+        <input type="text" id="modalUserName">
+      </div>
+      <div class="form-group">
+        <label>CPF</label>
+        <input type="text" id="userCpf" placeholder="000.000.000-00">
+      </div>
+      <div class="form-group">
+        <label>Usuário (login)</label>
+        <input type="text" id="userUsername">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="userPassword">
+      </div>
+      <button class="btn" onclick="saveUser()">Salvar</button>
+      <button class="btn btn-secondary" onclick="closeUserModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin + '/api';
+    let currentUser = null;
+    
+    // Check authentication
+    const userStr = sessionStorage.getItem('user');
+    if (!userStr) {
+      window.location.href = 'index.html';
+    } else {
+      currentUser = JSON.parse(userStr);
+      if (!currentUser.isAdmin) {
+        window.location.href = 'escalas.html';
+      }
+      document.getElementById('headerUserName').textContent = currentUser.fullName;
+    }
+    
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      if (tabName === 'meses') loadMonths();
+      if (tabName === 'usuarios') loadUsers();
+      if (tabName === 'config') loadSettings();
+    }
+    
+    // Months
+    async function loadMonths() {
+      try {
+        const response = await fetch(`${API_URL}/months`);
+        const result = await response.json();
+        
+        if (result.success) {
+          const container = document.getElementById('monthsList');
+          container.innerHTML = '';
+          
+          if (result.data.length === 0) {
+            container.innerHTML = '<div class="empty-state">Nenhum mês cadastrado</div>';
+            return;
+          }
+          
+          result.data.forEach(month => {
+            const div = document.createElement('div');
+            div.className = 'month-item';
+            div.innerHTML = `
+              <div class="month-info">
+                <div class="month-name">${getMonthName(month.month)}/${month.year}</div>
+                <div class="month-status">${month.isActive ? 'Ativo' : 'Inativo'}</div>
+              </div>
+              <div class="month-actions">
+                <button class="btn-small btn-toggle ${!month.isActive ? 'inactive' : ''}" onclick="toggleMonth(${month.id})">
+                  ${month.isActive ? 'Desativar' : 'Ativar'}
+                </button>
+                <button class="btn-small btn-delete" onclick="deleteMonth(${month.id})">Excluir</button>
+              </div>
+            `;
+            container.appendChild(div);
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar meses:', error);
+      }
+    }
+    
+    async function createMonth() {
+      const month = document.getElementById('newMonth').value;
+      const year = document.getElementById('newYear').value;
+      
+      try {
+        const response = await fetch(`${API_URL}/months`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month: parseInt(month), year: parseInt(year) })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('Mês criado com sucesso!');
+          loadMonths();
+        } else {
+          alert(result.error || 'Erro ao criar mês');
+        }
+      } catch (error) {
+        console.error('Erro ao criar mês:', error);
+        alert('Erro ao criar mês');
+      }
+    }
+    
+    async function toggleMonth(monthId) {
+      try {
+        const response = await fetch(`${API_URL}/months`);
+        const result = await response.json();
+        
+        if (result.success) {
+          const month = result.data.find(m => m.id === monthId);
+          
+          const updateResponse = await fetch(`${API_URL}/months/${monthId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...month, isActive: !month.isActive })
+          });
+          
+          const updateResult = await updateResponse.json();
+          if (updateResult.success) {
+            loadMonths();
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao alterar mês:', error);
+      }
+    }
+    
+    async function deleteMonth(monthId) {
+      if (!confirm('Tem certeza que deseja excluir este mês? Todas as reservas serão perdidas!')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/months/${monthId}`, {
+          method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('Mês excluído com sucesso!');
+          loadMonths();
+        }
+      } catch (error) {
+        console.error('Erro ao excluir mês:', error);
+      }
+    }
+    
+    // Users
+    async function loadUsers() {
+      try {
+        const response = await fetch(`${API_URL}/users`);
+        const result = await response.json();
+        
+        if (result.success) {
+          const container = document.getElementById('usersList');
+          container.innerHTML = '';
+          
+          if (result.data.length === 0) {
+            container.innerHTML = '<div class="empty-state">Nenhum usuário cadastrado</div>';
+            return;
+          }
+          
+          result.data.forEach(user => {
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `
+              <div class="user-name-item">${user.fullName}</div>
+              <div class="user-details">CPF: ${user.cpf} | Login: ${user.username} | ${user.isAdmin ? 'Gestor' : 'Usuário'}</div>
+            `;
+            container.appendChild(div);
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar usuários:', error);
+      }
+    }
+    
+    function showUserModal() {
+      document.getElementById('userModal').classList.add('show');
+    }
+    
+    function closeUserModal() {
+      document.getElementById('userModal').classList.remove('show');
+      document.getElementById('modalUserName').value = '';
+      document.getElementById('userCpf').value = '';
+      document.getElementById('userUsername').value = '';
+      document.getElementById('userPassword').value = '';
+
+    }
+    
+    async function saveUser() {
+      const name = document.getElementById('userName').value;
+      const cpf = document.getElementById('userCpf').value;
+      const username = document.getElementById('userUsername').value;
+      const password = document.getElementById('userPassword').value;
+      
+      if (!name || !cpf || !username || !password) {
+        alert('Preencha todos os campos');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, cpf, username, password, isAdmin: false })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('Usuário criado com sucesso!');
+          closeUserModal();
+          loadUsers();
+        } else {
+          alert(result.error || 'Erro ao criar usuário');
+        }
+      } catch (error) {
+        console.error('Erro ao criar usuário:', error);
+        alert('Erro ao criar usuário');
+      }
+    }
+    
+    // Settings
+    async function loadSettings() {
+      try {
+        const response = await fetch(`${API_URL}/settings`);
+        const result = await response.json();
+        
+        if (result.success) {
+          document.getElementById('value12h').value = result.data.value12h;
+          document.getElementById('valueIntegral').value = result.data.valueIntegral;
+        }
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+      }
+    }
+    
+    async function saveSettings() {
+      const value12h = parseFloat(document.getElementById('value12h').value);
+      const valueIntegral = parseFloat(document.getElementById('valueIntegral').value);
+      
+      try {
+        const response = await fetch(`${API_URL}/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value12h, valueIntegral })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('Configurações salvas com sucesso!');
+        }
+      } catch (error) {
+        console.error('Erro ao salvar configurações:', error);
+        alert('Erro ao salvar configurações');
+      }
+    }
+    
+    // Helper functions
+    function getMonthName(month) {
+      const names = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      return names[month - 1];
+    }
+    
+    function logout() {
+      sessionStorage.removeItem('user');
+      window.location.href = 'index.html';
+    }
+    
+    // Initialize
+    loadMonths();
+  </script>
+</body>
+</html>
