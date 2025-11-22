@@ -1,62 +1,42 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs').promises;
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Helper function to read data
-async function readData() {
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading data:', error);
-    throw error;
-  }
-}
-
-// Helper function to write data
-async function writeData(data) {
-  try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('Error writing data:', error);
-    throw error;
-  }
-}
-
-// Helper function to get next ID
-function getNextId(array) {
-  if (array.length === 0) return 1;
-  return Math.max(...array.map(item => item.id)) + 1;
-}
-
 // ==================== USERS ====================
 
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const data = await readData();
     
-    const user = data.users.find(u => 
-      u.login === username && 
-      u.password === password && 
-      u.isActive
-    );
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('login', username)
+      .eq('password', password)
+      .eq('isactive', true)
+      .single();
     
-    if (user) {
-      res.json({ success: true, data: user });
-    } else {
-      res.json({ success: false, error: 'Credenciais inválidas ou usuário inativo' });
+    if (error || !data) {
+      return res.json({ success: false, error: 'Credenciais inválidas ou usuário inativo' });
     }
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -64,8 +44,14 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/users', async (req, res) => {
   try {
-    const data = await readData();
-    res.json({ success: true, data: data.users });
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('id');
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -73,17 +59,22 @@ app.get('/api/users', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const data = await readData();
-    const newUser = {
-      id: getNextId(data.users),
-      ...req.body,
-      isActive: req.body.isActive !== false
-    };
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{
+        fullname: req.body.fullName,
+        cpf: req.body.cpf,
+        login: req.body.login,
+        password: req.body.password,
+        isadmin: req.body.isAdmin || false,
+        isactive: req.body.isActive !== false
+      }])
+      .select()
+      .single();
     
-    data.users.push(newUser);
-    await writeData(data);
+    if (error) throw error;
     
-    res.json({ success: true, data: newUser });
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -91,18 +82,26 @@ app.post('/api/users', async (req, res) => {
 
 app.put('/api/users/:id', async (req, res) => {
   try {
-    const data = await readData();
     const userId = parseInt(req.params.id);
-    const index = data.users.findIndex(u => u.id === userId);
     
-    if (index === -1) {
-      return res.json({ success: false, error: 'Usuário não encontrado' });
-    }
+    const updateData = {};
+    if (req.body.fullName) updateData.fullname = req.body.fullName;
+    if (req.body.cpf) updateData.cpf = req.body.cpf;
+    if (req.body.login) updateData.login = req.body.login;
+    if (req.body.password) updateData.password = req.body.password;
+    if (req.body.isAdmin !== undefined) updateData.isadmin = req.body.isAdmin;
+    if (req.body.isActive !== undefined) updateData.isactive = req.body.isActive;
     
-    data.users[index] = { ...data.users[index], ...req.body, id: userId };
-    await writeData(data);
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
     
-    res.json({ success: true, data: data.users[index] });
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -110,11 +109,14 @@ app.put('/api/users/:id', async (req, res) => {
 
 app.delete('/api/users/:id', async (req, res) => {
   try {
-    const data = await readData();
     const userId = parseInt(req.params.id);
     
-    data.users = data.users.filter(u => u.id !== userId);
-    await writeData(data);
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+    
+    if (error) throw error;
     
     res.json({ success: true });
   } catch (error) {
@@ -126,8 +128,15 @@ app.delete('/api/users/:id', async (req, res) => {
 
 app.get('/api/months', async (req, res) => {
   try {
-    const data = await readData();
-    res.json({ success: true, data: data.months });
+    const { data, error } = await supabase
+      .from('months')
+      .select('*')
+      .order('year', { ascending: false })
+      .order('month', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -135,27 +144,30 @@ app.get('/api/months', async (req, res) => {
 
 app.post('/api/months', async (req, res) => {
   try {
-    const data = await readData();
     const { year, month } = req.body;
     
-    const newMonth = {
-      id: getNextId(data.months),
-      year,
-      month,
-      isActive: false
-    };
+    // Create month
+    const { data: newMonth, error: monthError } = await supabase
+      .from('months')
+      .insert([{
+        year,
+        month,
+        isactive: false
+      }])
+      .select()
+      .single();
     
-    data.months.push(newMonth);
+    if (monthError) throw monthError;
     
     // Create shifts for this month
     const daysInMonth = new Date(year, month, 0).getDate();
     const shiftTypes = ['I', 'D', 'N'];
+    const shifts = [];
     
     for (let day = 1; day <= daysInMonth; day++) {
       shiftTypes.forEach(type => {
-        data.shifts.push({
-          id: getNextId(data.shifts),
-          monthId: newMonth.id,
+        shifts.push({
+          monthid: newMonth.id,
           day,
           type,
           capacity: 3
@@ -163,7 +175,12 @@ app.post('/api/months', async (req, res) => {
       });
     }
     
-    await writeData(data);
+    const { error: shiftsError } = await supabase
+      .from('shifts')
+      .insert(shifts);
+    
+    if (shiftsError) throw shiftsError;
+    
     res.json({ success: true, data: newMonth });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -172,18 +189,21 @@ app.post('/api/months', async (req, res) => {
 
 app.put('/api/months/:id', async (req, res) => {
   try {
-    const data = await readData();
     const monthId = parseInt(req.params.id);
-    const index = data.months.findIndex(m => m.id === monthId);
     
-    if (index === -1) {
-      return res.json({ success: false, error: 'Mês não encontrado' });
-    }
+    const updateData = {};
+    if (req.body.isActive !== undefined) updateData.isactive = req.body.isActive;
     
-    data.months[index] = { ...data.months[index], ...req.body, id: monthId };
-    await writeData(data);
+    const { data, error } = await supabase
+      .from('months')
+      .update(updateData)
+      .eq('id', monthId)
+      .select()
+      .single();
     
-    res.json({ success: true, data: data.months[index] });
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -191,22 +211,38 @@ app.put('/api/months/:id', async (req, res) => {
 
 app.delete('/api/months/:id', async (req, res) => {
   try {
-    const data = await readData();
     const monthId = parseInt(req.params.id);
     
-    // Get shift IDs before deleting
-    const shiftIds = data.shifts.filter(s => s.monthId === monthId).map(s => s.id);
+    // Get shift IDs
+    const { data: shifts } = await supabase
+      .from('shifts')
+      .select('id')
+      .eq('monthid', monthId);
     
-    // Delete month
-    data.months = data.months.filter(m => m.id !== monthId);
-    
-    // Delete shifts
-    data.shifts = data.shifts.filter(s => s.monthId !== monthId);
+    const shiftIds = shifts.map(s => s.id);
     
     // Delete reservations
-    data.reservations = data.reservations.filter(r => !shiftIds.includes(r.shiftId));
+    if (shiftIds.length > 0) {
+      await supabase
+        .from('reservations')
+        .delete()
+        .in('shiftid', shiftIds);
+    }
     
-    await writeData(data);
+    // Delete shifts
+    await supabase
+      .from('shifts')
+      .delete()
+      .eq('monthid', monthId);
+    
+    // Delete month
+    const { error } = await supabase
+      .from('months')
+      .delete()
+      .eq('id', monthId);
+    
+    if (error) throw error;
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -217,15 +253,19 @@ app.delete('/api/months/:id', async (req, res) => {
 
 app.get('/api/shifts', async (req, res) => {
   try {
-    const data = await readData();
     const monthId = req.query.monthId ? parseInt(req.query.monthId) : null;
     
-    let shifts = data.shifts;
+    let query = supabase.from('shifts').select('*').order('day').order('type');
+    
     if (monthId) {
-      shifts = shifts.filter(s => s.monthId === monthId);
+      query = query.eq('monthid', monthId);
     }
     
-    res.json({ success: true, data: shifts });
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -233,18 +273,21 @@ app.get('/api/shifts', async (req, res) => {
 
 app.put('/api/shifts/:id', async (req, res) => {
   try {
-    const data = await readData();
     const shiftId = parseInt(req.params.id);
-    const index = data.shifts.findIndex(s => s.id === shiftId);
     
-    if (index === -1) {
-      return res.json({ success: false, error: 'Turno não encontrado' });
-    }
+    const updateData = {};
+    if (req.body.capacity !== undefined) updateData.capacity = req.body.capacity;
     
-    data.shifts[index] = { ...data.shifts[index], ...req.body, id: shiftId };
-    await writeData(data);
+    const { data, error } = await supabase
+      .from('shifts')
+      .update(updateData)
+      .eq('id', shiftId)
+      .select()
+      .single();
     
-    res.json({ success: true, data: data.shifts[index] });
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -254,17 +297,31 @@ app.put('/api/shifts/:id', async (req, res) => {
 
 app.get('/api/reservations', async (req, res) => {
   try {
-    const data = await readData();
     const monthId = req.query.monthId ? parseInt(req.query.monthId) : null;
     
-    let reservations = data.reservations;
+    let query = supabase.from('reservations').select('*');
     
     if (monthId) {
-      const shiftIds = data.shifts.filter(s => s.monthId === monthId).map(s => s.id);
-      reservations = reservations.filter(r => shiftIds.includes(r.shiftId));
+      // Get shift IDs for this month
+      const { data: shifts } = await supabase
+        .from('shifts')
+        .select('id')
+        .eq('monthid', monthId);
+      
+      const shiftIds = shifts.map(s => s.id);
+      
+      if (shiftIds.length > 0) {
+        query = query.in('shiftid', shiftIds);
+      } else {
+        return res.json({ success: true, data: [] });
+      }
     }
     
-    res.json({ success: true, data: reservations });
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -272,18 +329,18 @@ app.get('/api/reservations', async (req, res) => {
 
 app.post('/api/reservations', async (req, res) => {
   try {
-    const data = await readData();
+    const { data, error } = await supabase
+      .from('reservations')
+      .insert([{
+        shiftid: req.body.shiftId,
+        userid: req.body.userId
+      }])
+      .select()
+      .single();
     
-    const newReservation = {
-      id: getNextId(data.reservations),
-      ...req.body,
-      createdAt: new Date().toISOString()
-    };
+    if (error) throw error;
     
-    data.reservations.push(newReservation);
-    await writeData(data);
-    
-    res.json({ success: true, data: newReservation });
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -291,11 +348,14 @@ app.post('/api/reservations', async (req, res) => {
 
 app.delete('/api/reservations/:id', async (req, res) => {
   try {
-    const data = await readData();
     const reservationId = parseInt(req.params.id);
     
-    data.reservations = data.reservations.filter(r => r.id !== reservationId);
-    await writeData(data);
+    const { error } = await supabase
+      .from('reservations')
+      .delete()
+      .eq('id', reservationId);
+    
+    if (error) throw error;
     
     res.json({ success: true });
   } catch (error) {
@@ -307,8 +367,15 @@ app.delete('/api/reservations/:id', async (req, res) => {
 
 app.get('/api/settings', async (req, res) => {
   try {
-    const data = await readData();
-    res.json({ success: true, data: data.settings });
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .limit(1)
+      .single();
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -316,11 +383,27 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings', async (req, res) => {
   try {
-    const data = await readData();
-    data.settings = { ...data.settings, ...req.body };
-    await writeData(data);
+    // Get the first settings record
+    const { data: existing } = await supabase
+      .from('settings')
+      .select('id')
+      .limit(1)
+      .single();
     
-    res.json({ success: true, data: data.settings });
+    const updateData = {};
+    if (req.body.value12h !== undefined) updateData.value12h = req.body.value12h;
+    if (req.body.valueIntegral !== undefined) updateData.valueintegral = req.body.valueIntegral;
+    
+    const { data, error } = await supabase
+      .from('settings')
+      .update(updateData)
+      .eq('id', existing.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -341,4 +424,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📊 Sistema de Escalas de Plantões - GBM`);
+  console.log(`🔗 Conectado ao Supabase: ${process.env.SUPABASE_URL}`);
 });
