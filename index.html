@@ -4,51 +4,33 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Escala - Gestor</title>
-
 <link rel="stylesheet" href="style.css" />
-
-<!-- CARREGA SUPABASE E EXPÕE NO WINDOW -->
-<script type="module">
-  import { createClient } from "https://esm.sh/@supabase/supabase-js";
-
-  window.supabase = createClient(
-    "https://rizprzmjxrspctlivfyn.supabase.co",
-    "SUA_ANON_KEY_AQUI"   // <--- substitua pela anon public key
-  );
-
-  console.log("Supabase carregado:", window.supabase);
-</script>
-
-<!-- CARREGA SEU APP APÓS O SUPABASE -->
-<script type="module" src="app.js"></script>
-
 </head>
 <body>
   <div id="root" class="container">
     <div id="authView" class="card">
       <h2>Entrar / Registrar</h2>
       <input id="warname" placeholder="Nome de guerra" />
-      <input id="password" type="password" placeholder="Senha" />
+      <input id="password" type="password" placeholder="Senha (use CPF)" />
       <div class="row">
         <button id="btnLogin">Entrar</button>
         <button id="btnRegister">Registrar</button>
       </div>
-      <p class="muted">Login com nome de guerra. Caso registre, informe dados no próximo passo.</p>
-
-      <div id="registerExtra" style="display:none">
+      <p class="muted">Login com nome de guerra. Senha = CPF no seu esquema atual.</p>
+      <div id="registerExtra" style="display:none; margin-top:10px;">
         <input id="fullName" placeholder="Nome completo" />
-        <input id="cpf" placeholder="CPF (somente números)" />
+        <input id="cpf" placeholder="CPF (somente números )" />
         <button id="btnFinishRegister">Finalizar registro</button>
       </div>
     </div>
 
     <div id="appView" style="display:none" class="card">
-      <div class="topbar">
+      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;">
         <div><b id="whoDisplay"></b> (<span id="roleDisplay"></span>)</div>
-        <button id="btnLogout">Logout</button>
+        <div><button id="btnLogout">Logout</button></div>
       </div>
 
-      <div id="adminControls" class="adminbar" style="display:none">
+      <div class="adminbar" id="adminControls" style="display:none; margin-top:10px;">
         <button id="btnCreateMonth">Criar mês</button>
         <select id="monthsSelect"></select>
         <button id="btnToggleActive">Ativar/Desativar</button>
@@ -56,11 +38,26 @@
         <button id="btnExport">Export CSV</button>
       </div>
 
-      <div id="statusBox"></div>
-      <div id="gridContainer"></div>
-      <div class="legend">Legendas: I = Integral (D+N).</div>
+      <div id="statusBox" style="margin-top:10px;"></div>
+      <div id="gridContainer" style="margin-top:10px;"></div>
+      <div class="legend" style="margin-top:10px;">Legendas: I = Integral (D+N). Até N pessoas por turno (configurável).</div>
     </div>
-
   </div>
+
+  <!-- Carrega Supabase via ESM e expõe window.supabase -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    // Substitua pela sua ANON KEY
+    const SUPABASE_URL = "https://rizprzmjxrspctlivfyn.supabase.co";
+    const SUPABASE_ANON_KEY = "SUA_ANON_KEY_AQUI";
+
+    // cria e expõe
+    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Supabase inicializado (window.supabase).");
+  </script>
+
+  <!-- App principal (module) -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
