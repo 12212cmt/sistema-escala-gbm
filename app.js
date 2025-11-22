@@ -1,8 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const supabaseUrl = 'https://exhfpeeslhjpvfmbonyz.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4aGZwZWVzbGhqcHZmbWJvbnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MzEyOTcsImV4cCI6MjA3OTQwNzI5N30.zwLuyDV8vuZhH0vSl22CmK0QxXHyzY3jcJMNA2wt-zo'
-
+const supabaseKey = 'SUA_CHAVE_ANON' // substitua pela sua chave
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 let currentUser = null
@@ -18,19 +17,19 @@ window.loginUser = async function() {
     .ilike('name', name)
     .single()
 
-  if (error) {
-    console.log('Erro no login:', error)
-    return alert('Usuário não encontrado')
-  }
-
-  if (!data) return alert('Usuário não encontrado')
+  if (error || !data) return alert('Usuário não encontrado')
   if (data.password.trim() !== password) return alert('Senha incorreta')
 
   currentUser = data
   localStorage.setItem('user', JSON.stringify(currentUser))
+
   document.getElementById('login').style.display = 'none'
   document.getElementById('app').style.display = 'block'
   document.getElementById('userLabel').innerText = `Olá, ${currentUser.name}`
+
+  // mostrar botão criar mês apenas para gestor
+  document.getElementById('createMonthBtn').style.display =
+    currentUser.role === 'gestor' ? 'block' : 'none'
 
   await loadCalendar()
 }
@@ -41,6 +40,23 @@ window.logoutUser = function() {
   currentUser = null
   document.getElementById('login').style.display = 'block'
   document.getElementById('app').style.display = 'none'
+}
+
+// ================= CRIAR MÊS =================
+window.createMonth = async function() {
+  const month = parseInt(prompt('Número do mês (1-12)'))
+  const year = parseInt(prompt('Ano (ex: 2025)'))
+
+  if (!month || !year) return alert('Mês ou ano inválido')
+
+  const { data, error } = await supabase
+    .from('months')
+    .insert([{ month, year }])
+
+  if (error) return alert('Erro ao criar mês: ' + error.message)
+
+  alert('Mês criado com sucesso!')
+  await loadCalendar()
 }
 
 // ================= CARREGAR CALENDÁRIO =================
@@ -57,7 +73,7 @@ window.loadCalendar = async function() {
     .single()
 
   if (monthError) { console.log('Erro ao buscar mês:', monthError); return }
-  if (!monthData) { console.log('Mês não encontrado'); return }
+  if (!monthData) { console.log('Nenhum mês encontrado'); return }
 
   const { data: days, error: daysError } = await supabase
     .from('days')
@@ -86,7 +102,7 @@ function renderCalendar(days, turns) {
 
     const card = document.createElement('div')
     card.className = 'dayCard'
-    card.innerHTML = `<h3>${day.date} (${day.weekday})</h3>`
+    card.innerHTML = `<h3>${day.date} (${day.weekday || ''})</h3>`
 
     dayTurns.forEach(t => {
       const slots = [t.slot1, t.slot2, t.slot3]
