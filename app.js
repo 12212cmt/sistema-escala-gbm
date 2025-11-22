@@ -2,25 +2,33 @@
 const SUPABASE_URL = 'https://rizprzmjxrspctlivfyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpenByem1qeHJzcGN0bGl2ZnluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3ODA3NDQsImV4cCI6MjA3OTM1Njc0NH0.D-5G3eQTRr1bK607zOfvdDzomwJkRFvl8MHTJLsJuXg';
 
-// Cria cliente Supabase
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase; // será inicializado após DOM pronto
 
-// Utilitário: converte nome de guerra em "email interno"
-function warToEmail(w){ return `${w}@interno.project`; }
-
-// Estado
+// Estado global
 let currentUser = null;
 let currentProfile = null;
 let currentMonthId = null;
 
 // DOM
-const authView = document.getElementById('authView');
-const appView = document.getElementById('appView');
-const registerExtra = document.getElementById('registerExtra');
+let authView, appView, registerExtra;
 
-// Inicialização
-async function init(){
+// Utilitário: converte warname em email interno
+function warToEmail(w){ return `${w}@interno.project`; }
+
+// ---------- Inicialização ----------
+document.addEventListener('DOMContentLoaded', async () => {
   try {
+    // Inicializa supabase somente agora
+    supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Referências DOM
+    authView = document.getElementById('authView');
+    appView = document.getElementById('appView');
+    registerExtra = document.getElementById('registerExtra');
+
+    attachHandlers();
+
+    // Checa sessão atual
     const { data } = await supabase.auth.getSession();
     if(data && data.session){
       await fetchProfile(data.session.user);
@@ -28,25 +36,23 @@ async function init(){
     } else {
       showAuth();
     }
-    attachHandlers();
-  } catch(e) {
-    console.error("Erro init:", e);
+  } catch(e){
+    console.error("Erro inicializando app:", e);
   }
-}
+});
 
 function showAuth(){ authView.style.display='block'; appView.style.display='none'; }
 function showApp(){ authView.style.display='none'; appView.style.display='block'; }
 
-// Registra eventos dos botões
+// ---------- Eventos ----------
 function attachHandlers(){
   document.getElementById('btnLogin').onclick = login;
   document.getElementById('btnRegister').onclick = ()=> registerExtra.style.display = 'block';
   document.getElementById('btnFinishRegister').onclick = register;
   document.getElementById('btnLogout').onclick = logout;
-  // Os outros botões podem ser registrados depois se necessário
 }
 
-// ---------- Funções de autenticação ----------
+// ---------- Auth ----------
 async function login(){
   const war = document.getElementById('warname').value.trim();
   const pass = document.getElementById('password').value.trim();
@@ -58,7 +64,7 @@ async function login(){
     if(error){ alert('Erro login: '+error.message); return; }
     await fetchProfile(data.user);
     showApp();
-  } catch(e) {
+  } catch(e){
     console.error("Erro login:", e);
     alert("Erro ao tentar logar");
   }
@@ -73,7 +79,7 @@ async function register(){
   const email = warToEmail(war);
 
   try {
-    // signup
+    // Cadastro
     const { data, error } = await supabase.auth.signUp({ email, password: pass });
     if(error){ alert('Erro registro: '+error.message); return; }
 
@@ -120,6 +126,3 @@ async function logout(){
   currentProfile = null;
   showAuth();
 }
-
-// Inicializa quando o DOM estiver pronto
-document.addEventListener('DOMContentLoaded', init);
