@@ -298,7 +298,7 @@
       window.location.href = 'index.html';
     } else {
       currentUser = JSON.parse(userStr);
-      document.getElementById('headerUserName').textContent = currentUser.name;
+      document.getElementById('headerUserName').textContent = currentUser.fullName;
       document.getElementById('userRole').textContent = currentUser.isAdmin ? 'Gestor' : 'Usuário';
     }
     
