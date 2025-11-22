@@ -2,7 +2,7 @@
 const SUPABASE_URL = 'https://rizprzmjxrspctlivfyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpenByem1qeHJzcGN0bGl2ZnluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3ODA3NDQsImV4cCI6MjA3OTM1Njc0NH0.D-5G3eQTRr1bK607zOfvdDzomwJkRFvl8MHTJLsJuXg';
 
-const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY );
 
 // util: transforma warname em email interno (não precisa ser um email real)
 function warToEmail(w){ return `${w}@interno.project`; }
@@ -18,7 +18,6 @@ const appView = document.getElementById('appView');
 const registerExtra = document.getElementById('registerExtra');
 
 // Inicial
-init();
 
 async function init(){
   // check session
@@ -253,3 +252,6 @@ async function exportCSV(){
   const a = document.createElement('a'); a.href = url; a.download = `escala_mes_${currentMonthId}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
+
+// Inicial
+init();
