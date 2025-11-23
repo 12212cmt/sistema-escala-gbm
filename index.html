@@ -33,7 +33,6 @@
     <nav>
       <a href="#" data-target="cadastro-form-section">Cadastro de Usuários</a>
       <a href="#" data-target="visualizar-usuarios-section">Visualizar Usuários</a>
-      <!-- Adicione outros menus aqui no futuro -->
     </nav>
   </header>
 
@@ -88,7 +87,113 @@
   </div>
 
   <script>
-    // O JavaScript será implementado na próxima fase
+    // **ATENÇÃO**: Mantenha esta URL atualizada com a URL de implantação do seu Google Apps Script
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXCtOBulNLVyiul3Ko-UEGUdMZOhX-yjbbm0Txl7i1dEP6zXubdlYh_tGiTExs4ZiRig/exec";
+    
+    const form = document.getElementById('cadastroForm' );
+    const usersTableBody = document.querySelector('#usersTable tbody');
+    const navLinks = document.querySelectorAll('header nav a');
+    const contentSections = document.querySelectorAll('.content-section');
+
+    // --- 1. FUNÇÃO DE NAVEGAÇÃO ---
+    function showSection(targetId) {
+      contentSections.forEach(section => {
+        section.classList.remove('active');
+      });
+      document.getElementById(targetId).classList.add('active');
+      
+      // Se a seção de visualização for ativada, carrega os dados
+      if (targetId === 'visualizar-usuarios-section') {
+        loadUsers();
+      }
+    }
+
+    navLinks.forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('data-target');
+        showSection(targetId);
+      });
+    });
+
+    // --- 2. FUNÇÃO DE CADASTRO (Versão funcional) ---
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const data = {
+        nome: form.nome.value,
+        cpf: form.cpf.value,
+        login: form.login.value,
+        senha: form.senha.value,
+        tipo: form.tipo.value
+      };
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(response => {
+        if (response.status === "ok") {
+            alert("Cadastro realizado com sucesso! ID: " + response.id);
+            form.reset();
+            // Recarrega a lista se estiver na seção de visualização
+            if (document.getElementById('visualizar-usuarios-section').classList.contains('active')) {
+                loadUsers();
+            }
+        } else {
+            alert("Erro no servidor do Apps Script: " + JSON.stringify(response));
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Erro ao enviar dados. Verifique o console para mais detalhes.");
+      });
+    });
+
+    // --- 3. FUNÇÃO DE VISUALIZAÇÃO ---
+    function loadUsers() {
+      usersTableBody.innerHTML = '<tr><td colspan="6">Carregando usuários...</td></tr>';
+
+      // Requisição GET para buscar os dados
+      fetch(SCRIPT_URL)
+        .then(res => res.json())
+        .then(users => {
+          usersTableBody.innerHTML = ''; // Limpa a mensagem de carregamento
+          
+          if (users.length === 0) {
+            usersTableBody.innerHTML = '<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>';
+            return;
+          }
+
+          users.forEach(user => {
+            const row = usersTableBody.insertRow();
+            
+            // Colunas de dados
+            row.insertCell().textContent = user.id || 'N/A';
+            row.insertCell().textContent = user.nome || 'N/A';
+            row.insertCell().textContent = user.cpf || 'N/A';
+            row.insertCell().textContent = user.login || 'N/A';
+            row.insertCell().textContent = user.tipo || 'N/A';
+            
+            // Coluna de Ações (Edição e Exclusão - Funcionalidade futura)
+            const actionsCell = row.insertCell();
+            actionsCell.innerHTML = `
+              <button class="action-btn edit-btn" data-id="${user.id}">Editar</button>
+              <button class="action-btn delete-btn" data-id="${user.id}">Excluir</button>
+            `;
+          });
+        })
+        .catch(err => {
+          console.error('Erro ao carregar usuários:', err);
+          usersTableBody.innerHTML = '<tr><td colspan="6">Erro ao carregar dados. Verifique o Apps Script.</td></tr>';
+        });
+    }
+
+    // Inicializa a página mostrando a seção de cadastro
+    document.addEventListener('DOMContentLoaded', () => {
+        showSection('cadastro-form-section');
+    });
   </script>
 </body>
 </html>
