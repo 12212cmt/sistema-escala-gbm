@@ -3,140 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Escala GBM</title>
+<title>Gestor de Meses - Escala GBM</title>
 <style>
 body { font-family: sans-serif; padding: 10px; max-width: 600px; margin: auto; }
-input, button { width: 100%; padding: 10px; margin: 5px 0; font-size: 16px; }
-.dayCard { border: 1px solid #8883; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-button { cursor: pointer; }
+button { padding: 10px; margin: 5px 0; font-size: 16px; cursor: pointer; }
+ul { list-style: none; padding: 0; }
+li { padding: 5px 0; border-bottom: 1px solid #ccc; }
 </style>
 </head>
 <body>
 
-<div id="login">
-  <h2>Entrar</h2>
-  <input id="name" placeholder="Nome">
-  <input id="code" type="password" placeholder="Código">
-  <button id="loginBtn">Entrar</button>
-</div>
-
-<div id="app" style="display:none;">
-  <h2 id="userLabel"></h2>
-  <button id="logoutBtn">Sair</button>
-  <button id="createMonthBtn" style="display:none;">Criar mês</button>
-  <div id="calendar"></div>
-</div>
+<h2>Gestor - Meses</h2>
+<button id="createMonthBtn">Criar mês</button>
+<ul id="monthList"></ul>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Supabase
 const supabaseUrl = 'https://exhfpeeslhjpvfmbonyz.supabase.co'
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3NjM4MzEyOTcsImV4cCI6MjA3OTQwNzI5N30.zwLuyDV8vuZhH0vSl22CmK0QxXHyzY3jcJMNA2wt-zo'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-let currentUser = null
+const monthList = document.getElementById('monthList')
+const createBtn = document.getElementById('createMonthBtn')
 
-// LOGIN
-document.getElementById('loginBtn').addEventListener('click', async () => {
-  const name = document.getElementById('name').value.trim()
-  const code = document.getElementById('code').value.trim()
-  if (!name || !code) return alert('Preencha nome e código')
+// Listar meses
+async function loadMonths() {
+  const { data, error } = await supabase.from('months').select('*').order('year').order('month')
+  if (error) return alert('Erro ao carregar meses: ' + error.message)
+  
+  monthList.innerHTML = ''
+  data.forEach(m => {
+    const li = document.createElement('li')
+    li.textContent = `Mês: ${m.month} / Ano: ${m.year}`
+    monthList.appendChild(li)
+  })
+}
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('name', name)
-    .single()
-
-  if (error || !data) return alert('Usuário não encontrado')
-  if (data.password.trim() !== code) return alert('Código incorreto')
-
-  currentUser = data
-  document.getElementById('login').style.display = 'none'
-  document.getElementById('app').style.display = 'block'
-  document.getElementById('userLabel').innerText = `Olá, ${currentUser.name}`
-
-  // mostrar botão criar mês apenas para gestor
-  document.getElementById('createMonthBtn').style.display =
-    currentUser.role === 'gestor' ? 'block' : 'none'
-
-  loadCalendar()
-})
-
-// LOGOUT
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  currentUser = null
-  document.getElementById('login').style.display = 'block'
-  document.getElementById('app').style.display = 'none'
-  document.getElementById('calendar').innerHTML = ''
-})
-
-// CRIAR MÊS (apenas gestor)
-document.getElementById('createMonthBtn').addEventListener('click', async () => {
+// Criar mês
+createBtn.addEventListener('click', async () => {
   const month = parseInt(prompt('Número do mês (1-12)'))
   const year = parseInt(prompt('Ano (ex: 2025)'))
   if (!month || !year) return alert('Mês ou ano inválido')
-
+  
   const { error } = await supabase.from('months').insert([{ month, year }])
   if (error) return alert('Erro ao criar mês: ' + error.message)
-  alert('Mês criado com sucesso!')
-  loadCalendar()
+  alert('Mês criado!')
+  loadMonths()
 })
 
-// CARREGAR CALENDÁRIO
-async function loadCalendar() {
-  const today = new Date()
-  const month = today.getMonth() + 1
-  const year = today.getFullYear()
-
-  const { data: monthData } = await supabase
-    .from('months').select('*').eq('year', year).eq('month', month).single()
-
-  if (!monthData) { document.getElementById('calendar').innerHTML = 'Nenhum mês encontrado'; return }
-
-  const { data: days } = await supabase.from('days').select('*').eq('month_id', monthData.id)
-  const { data: turns } = await supabase.from('turns').select('*').in('day_id', days.map(d => d.id))
-
-  renderCalendar(days, turns)
-}
-
-// RENDER CALENDÁRIO
-function renderCalendar(days, turns) {
-  const container = document.getElementById('calendar')
-  container.innerHTML = ''
-
-  days.forEach(day => {
-    const dayTurns = turns.filter(t => t.day_id === day.id)
-    const card = document.createElement('div')
-    card.className = 'dayCard'
-    card.innerHTML = `<h3>${day.date} (${day.weekday || ''})</h3>`
-
-    dayTurns.forEach(t => {
-      const slots = [t.slot1, t.slot2, t.slot3]
-      const section = document.createElement('div')
-      section.innerHTML = `<b>${t.type.toUpperCase()}</b>`
-
-      slots.forEach((slot, i) => {
-        const btn = document.createElement('button')
-        btn.innerText = slot ? slot : 'Disponível'
-        btn.disabled = slot && slot !== currentUser.id
-        btn.onclick = slot === currentUser.id || !slot
-          ? async () => {
-              const update = {}; update[`slot${i+1}`] = slot ? null : currentUser.id
-              await supabase.from('turns').update(update).eq('id', t.id)
-              loadCalendar()
-            }
-          : null
-        section.appendChild(btn)
-      })
-
-      card.appendChild(section)
-    })
-
-    container.appendChild(card)
-  })
-}
+// Inicializar
+loadMonths()
 </script>
 
 </body>
