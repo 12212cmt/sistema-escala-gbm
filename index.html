@@ -88,12 +88,14 @@
 
   <script>
     // **ATENÇÃO**: Mantenha esta URL atualizada com a URL de implantação do seu Google Apps Script
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxazLlxuwNCYsDeoGkJIZJJLLbV8oIbHj-NVNyc_25Yj2VBQ6Ph8jP1ZpWvnpsT2pX8XA/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5cZHf5krMtLhxHmwax4nQ2OB78SVkIQggeOZD_fVoqj9378p-farc2hB77pwOuvnZNQ/exec";
     
     const form = document.getElementById('cadastroForm' );
     const usersTableBody = document.querySelector('#usersTable tbody');
     const navLinks = document.querySelectorAll('header nav a');
     const contentSections = document.querySelectorAll('.content-section');
+    
+    let editingUserId = null;
 
     // --- 1. FUNÇÃO DE NAVEGAÇÃO ---
     function showSection(targetId) {
@@ -102,7 +104,6 @@
       });
       document.getElementById(targetId).classList.add('active');
       
-      // Se a seção de visualização for ativada, carrega os dados
       if (targetId === 'visualizar-usuarios-section') {
         loadUsers();
       }
@@ -116,33 +117,39 @@
       });
     });
 
-    // --- 2. FUNÇÃO DE CADASTRO (Versão funcional) ---
+    // --- 2. FUNÇÃO DE CADASTRO/EDIÇÃO (doPost/doPut) ---
     form.addEventListener('submit', function(e) {
       e.preventDefault();
 
       const data = {
+        id: editingUserId,
         nome: form.nome.value,
         cpf: form.cpf.value,
         login: form.login.value,
         senha: form.senha.value,
         tipo: form.tipo.value
       };
+      
+      // Se estiver editando, usa a função doPut, senão usa doPost
+      const methodFunction = editingUserId ? 'doPut' : 'doPost';
 
-      fetch(SCRIPT_URL, {
+      fetch(`${SCRIPT_URL}?action=${methodFunction}`, {
         method: "POST",
         body: JSON.stringify(data)
       })
       .then(res => res.json())
       .then(response => {
         if (response.status === "ok") {
-            alert("Cadastro realizado com sucesso! ID: " + response.id);
+            alert(editingUserId ? "Usuário atualizado com sucesso!" : "Cadastro realizado com sucesso! ID: " + response.id);
             form.reset();
-            // Recarrega a lista se estiver na seção de visualização
+            editingUserId = null;
+            form.querySelector('button[type="submit"]').textContent = 'Cadastrar';
+            
             if (document.getElementById('visualizar-usuarios-section').classList.contains('active')) {
                 loadUsers();
             }
         } else {
-            alert("Erro no servidor do Apps Script: " + JSON.stringify(response));
+            alert("Erro: " + response.message);
         }
       })
       .catch(err => {
@@ -151,15 +158,14 @@
       });
     });
 
-    // --- 3. FUNÇÃO DE VISUALIZAÇÃO ---
+    // --- 3. FUNÇÃO DE VISUALIZAÇÃO (doGet) ---
     function loadUsers() {
       usersTableBody.innerHTML = '<tr><td colspan="6">Carregando usuários...</td></tr>';
 
-      // Requisição GET para buscar os dados
       fetch(SCRIPT_URL)
         .then(res => res.json())
         .then(users => {
-          usersTableBody.innerHTML = ''; // Limpa a mensagem de carregamento
+          usersTableBody.innerHTML = ''; 
           
           if (users.length === 0) {
             usersTableBody.innerHTML = '<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>';
@@ -169,35 +175,80 @@
           users.forEach(user => {
             const row = usersTableBody.insertRow();
             
-            // Colunas de dados
             row.insertCell().textContent = user.id || 'N/A';
             row.insertCell().textContent = user.nome || 'N/A';
             row.insertCell().textContent = user.cpf || 'N/A';
             row.insertCell().textContent = user.login || 'N/A';
             row.insertCell().textContent = user.tipo || 'N/A';
             
-            // Coluna de Ações (Edição e Exclusão - Funcionalidade futura)
             const actionsCell = row.insertCell();
             actionsCell.innerHTML = `
-              <button class="action-btn edit-btn" data-id="${user.id}">Editar</button>
+              <button class="action-btn edit-btn" data-id="${user.id}" data-user='${JSON.stringify(user)}'>Editar</button>
               <button class="action-btn delete-btn" data-id="${user.id}">Excluir</button>
             `;
           });
+          
+          addActionListener();
         })
         .catch(err => {
           console.error('Erro ao carregar usuários:', err);
           usersTableBody.innerHTML = '<tr><td colspan="6">Erro ao carregar dados. Verifique o Apps Script.</td></tr>';
         });
     }
+    
+    // --- 4. FUNÇÕES DE AÇÃO (Edição e Exclusão) ---
+    function addActionListener() {
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', handleDelete);
+        });
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', handleEdit);
+        });
+    }
+    
+    function handleDelete(e) {
+        const id = e.target.getAttribute('data-id');
+        if (!confirm(`Tem certeza que deseja excluir o usuário com ID ${id}?`)) {
+            return;
+        }
+        
+        fetch(`${SCRIPT_URL}?action=doDelete`, {
+            method: "POST",
+            body: JSON.stringify({ id: id })
+        })
+        .then(res => res.json())
+        .then(response => {
+            if (response.status === "ok") {
+                alert(response.message);
+                loadUsers();
+            } else {
+                alert("Erro ao excluir: " + response.message);
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao excluir:', err);
+            alert("Erro de comunicação ao tentar excluir.");
+        });
+    }
+    
+    function handleEdit(e) {
+        const userData = JSON.parse(e.target.getAttribute('data-user'));
+        
+        form.nome.value = userData.nome;
+        form.cpf.value = userData.cpf;
+        form.login.value = userData.login;
+        form.senha.value = userData.senha;
+        form.tipo.value = userData.tipo;
+        
+        editingUserId = userData.id;
+        form.querySelector('button[type="submit"]').textContent = 'Salvar Alterações';
+        
+        showSection('cadastro-form-section');
+    }
 
-    // Inicializa a página mostrando a seção de cadastro
     document.addEventListener('DOMContentLoaded', () => {
         showSection('cadastro-form-section');
     });
   </script>
 </body>
 </html>
-
-
-
-
