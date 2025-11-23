@@ -1,60 +1,183 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestor de Meses - Escala GBM</title>
-<style>
-body { font-family: sans-serif; padding: 10px; max-width: 600px; margin: auto; }
-button { padding: 10px; margin: 5px 0; font-size: 16px; cursor: pointer; }
-ul { list-style: none; padding: 0; }
-li { padding: 5px 0; border-bottom: 1px solid #ccc; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro Supabase</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    input, select, button { margin: 5px 0; padding: 5px; }
+    button { cursor: pointer; }
+  </style>
 </head>
 <body>
+  <h2>Usuários</h2>
+  <table id="usersTable">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Senha</th>
+        <th>Função</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-<h2>Gestor - Meses</h2>
-<button id="createMonthBtn">Criar mês</button>
-<ul id="monthList"></ul>
+  <h3>Adicionar Usuário</h3>
+  <form id="userForm">
+    <input type="text" name="name" placeholder="Nome" required>
+    <input type="text" name="password" placeholder="Senha" required>
+    <select name="role" required>
+      <option value="">Selecione a função</option>
+      <option value="gestor">Gestor</option>
+      <option value="usuario">Usuário</option>
+    </select>
+    <button type="submit">Adicionar</button>
+  </form>
 
-<script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+  <h2>Meses</h2>
+  <table id="monthsTable">
+    <thead>
+      <tr>
+        <th>Ano</th>
+        <th>Mês</th>
+        <th>Ativo</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-const supabaseUrl = 'https://exhfpeeslhjpvfmbonyz.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3NjM4MzEyOTcsImV4cCI6MjA3OTQwNzI5N30.zwLuyDV8vuZhH0vSl22CmK0QxXHyzY3jcJMNA2wt-zo'
-const supabase = createClient(supabaseUrl, supabaseKey)
+  <h3>Adicionar Mês</h3>
+  <form id="monthForm">
+    <input type="number" name="year" placeholder="Ano" required>
+    <input type="number" name="month" placeholder="Mês" min="1" max="12" required>
+    <label>
+      Ativo
+      <input type="checkbox" name="active">
+    </label>
+    <button type="submit">Adicionar</button>
+  </form>
 
-const monthList = document.getElementById('monthList')
-const createBtn = document.getElementById('createMonthBtn')
+  <script>
+    const SUPABASE_URL = "https://exhfpeeslhjpvfmbonyz.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4aGZwZWVzbGhqcHZmbWJvbnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4MzEyOTcsImV4cCI6MjA3OTQwNzI5N30.zwLuyDV8vuZhH0vSl22CmK0QxXHyzY3jcJMNA2wt-zo";
 
-// Listar meses
-async function loadMonths() {
-  const { data, error } = await supabase.from('months').select('*').order('year').order('month')
-  if (error) return alert('Erro ao carregar meses: ' + error.message)
-  
-  monthList.innerHTML = ''
-  data.forEach(m => {
-    const li = document.createElement('li')
-    li.textContent = `Mês: ${m.month} / Ano: ${m.year}`
-    monthList.appendChild(li)
-  })
-}
+    async function fetchUsers() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/Usuarios?select=*`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      const data = await res.json();
+      const tbody = document.querySelector("#usersTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(user => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${user.name}</td>
+          <td>${user.password}</td>
+          <td>${user.role}</td>
+          <td><button onclick="deleteUser('${user.id}')">Excluir</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
 
-// Criar mês
-createBtn.addEventListener('click', async () => {
-  const month = parseInt(prompt('Número do mês (1-12)'))
-  const year = parseInt(prompt('Ano (ex: 2025)'))
-  if (!month || !year) return alert('Mês ou ano inválido')
-  
-  const { error } = await supabase.from('months').insert([{ month, year }])
-  if (error) return alert('Erro ao criar mês: ' + error.message)
-  alert('Mês criado!')
-  loadMonths()
-})
+    async function fetchMonths() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/Meses?select=*`, {
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      const data = await res.json();
+      const tbody = document.querySelector("#monthsTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(month => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${month.year}</td>
+          <td>${month.month}</td>
+          <td>${month.active ? "Sim" : "Não"}</td>
+          <td><button onclick="deleteMonth('${month.id}')">Excluir</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
 
-// Inicializar
-loadMonths()
-</script>
+    document.getElementById("userForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        name: form.name.value,
+        password: form.password.value,
+        role: form.role.value
+      };
+      await fetch(`${SUPABASE_URL}/rest/v1/Usuarios`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+      form.reset();
+      fetchUsers();
+    });
 
+    document.getElementById("monthForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        year: parseInt(form.year.value),
+        month: parseInt(form.month.value),
+        active: form.active.checked
+      };
+      await fetch(`${SUPABASE_URL}/rest/v1/Meses`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+      form.reset();
+      fetchMonths();
+    });
+
+    async function deleteUser(id) {
+      await fetch(`${SUPABASE_URL}/rest/v1/Usuarios?id=eq.${id}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      fetchUsers();
+    }
+
+    async function deleteMonth(id) {
+      await fetch(`${SUPABASE_URL}/rest/v1/Meses?id=eq.${id}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      fetchMonths();
+    }
+
+    // Inicializa as tabelas
+    fetchUsers();
+    fetchMonths();
+  </script>
 </body>
 </html>
