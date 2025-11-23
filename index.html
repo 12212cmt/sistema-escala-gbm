@@ -68,15 +68,14 @@
       .nav-container { flex-direction: column; align-items: flex-start; }
       .menu-toggle { display: block; position: absolute; right: 20px; top: 15px; }
       nav { width: 100%; }
-      nav > ul { flex-direction: column; display: none; } /* Esconde o menu por padrão no mobile */
-      nav > ul.active { display: flex; } /* Mostra o menu quando ativo */
+      nav > ul { flex-direction: column; display: none; }
+      nav > ul.active { display: flex; }
       nav > ul > li { margin: 0; border-top: 1px solid #0056b3; }
       nav > ul > li > a { padding: 10px 15px; }
       
       .submenu { position: static; background-color: #004085; min-width: 100%; }
       .submenu li a { padding-left: 30px; }
       
-      /* Responsividade do Calendário */
       .calendar-grid { display: block; }
       .calendar-row { border-bottom: 1px solid #ccc; margin-bottom: 10px; padding-bottom: 10px; }
       .calendar-cell { border: none; border-bottom: 1px dotted #ddd; }
@@ -280,7 +279,7 @@
         calendarView.innerHTML = html;
     }
     
-    // --- 4. FUNÇÕES DE CRUD ---
+    // --- 4. FUNÇÕES DE CRUD (Restauradas) ---
     
     form.addEventListener('submit', function(e) {
       e.preventDefault();
