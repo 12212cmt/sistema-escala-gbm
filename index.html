@@ -1,77 +1,47 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Cadastro Simples Firebase</title>
+  <title>Cadastro</title>
 </head>
 <body>
+  <h2>Cadastro Usuário</h2>
+  <form id="cadastroForm">
+    Nome completo: <input type="text" name="nome" required><br>
+    CPF: <input type="text" name="cpf" required><br>
+    Login: <input type="text" name="login" required><br>
+    Senha: <input type="password" name="senha" required><br>
+    Tipo:
+    <select name="tipo" required>
+      <option value="Gestor">Gestor</option>
+      <option value="Usuário">Usuário</option>
+    </select><br><br>
+    <button type="submit">Cadastrar</button>
+  </form>
 
-<h1>Cadastro de Usuários</h1>
+  <script>
+    const form = document.getElementById('cadastroForm');
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      
+      const data = {
+        nome: form.nome.value,
+        cpf: form.cpf.value,
+        login: form.login.value,
+        senha: form.senha.value,
+        tipo: form.tipo.value
+      };
 
-<input type="text" id="name" placeholder="Nome">
-<input type="text" id="login" placeholder="Login">
-<input type="password" id="password" placeholder="Senha">
-<select id="tipo">
-  <option value="">Tipo</option>
-  <option value="usuario">Usuário</option>
-  <option value="gestor">Gestor</option>
-</select>
-<button id="btnAdd">Cadastrar</button>
-
-<h2>Usuários cadastrados</h2>
-<ul id="usersList"></ul>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
-
-<script>
-  // Configuração do Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyDB41mLHYDSS0lyJ_kqBtjTsh0hd3Mn92A",
-    authDomain: "fireapp-escalabc.firebaseapp.com",
-    databaseURL: "https://fireapp-escalabc-default-rtdb.firebaseio.com",
-    projectId: "fireapp-escalabc",
-    storageBucket: "fireapp-escalabc.appspot.com",
-    messagingSenderId: "76641115162",
-    appId: "1:76641115162:web:4d78f078651361f24ec5a3"
-  };
-
-  // Inicializa Firebase
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // Função para adicionar usuário
-  document.getElementById("btnAdd").addEventListener("click", () => {
-    const name = document.getElementById("name").value;
-    const login = document.getElementById("login").value;
-    const password = document.getElementById("password").value;
-    const tipo = document.getElementById("tipo").value;
-
-    if (!name || !login || !password || !tipo) {
-      alert("Preencha todos os campos!");
-      return;
-    }
-
-    db.ref("usuarios").push({ name, login, password, tipo });
-    document.getElementById("name").value = "";
-    document.getElementById("login").value = "";
-    document.getElementById("password").value = "";
-    document.getElementById("tipo").value = "";
-  });
-
-  // Mostrar usuários em tempo real
-  db.ref("usuarios").on("value", snapshot => {
-    const list = document.getElementById("usersList");
-    list.innerHTML = "";
-    snapshot.forEach(snap => {
-      const u = snap.val();
-      const li = document.createElement("li");
-      li.textContent = `${u.name} (${u.login}) - ${u.tipo}`;
-      list.appendChild(li);
+      fetch("https://script.google.com/macros/s/AKfycbypty12Hb8XpEY1exZe1BF3M3HZf3-Yzcb7mum0_NQt41qJrAmvYcJ4VJhmn7DTgeZdig/exec", {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(response => {
+        alert("Cadastro realizado! ID: " + response.id);
+        form.reset();
+      })
+      .catch(err => alert("Erro ao enviar: " + err));
     });
-  });
-</script>
-
+  </script>
 </body>
 </html>
