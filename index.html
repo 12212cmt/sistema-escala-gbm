@@ -43,24 +43,22 @@
     form.addEventListener('submit', function(e ) {
       e.preventDefault();
 
-      const data = {
-        nome: form.nome.value,
-        cpf: form.cpf.value,
-        login: form.login.value,
-        senha: form.senha.value,
-        tipo: form.tipo.value
-      };
+      // 1. Cria um objeto FormData a partir do formulário
+      const formData = new FormData(form);
+      
+      // 2. Converte o FormData para uma string de query (formato x-www-form-urlencoded)
+      const urlEncodedData = new URLSearchParams(formData).toString();
 
       fetch(SCRIPT_URL, {
         method: "POST",
-        // CORREÇÃO: Adicionando o cabeçalho Content-Type para informar ao Apps Script que o corpo é JSON
+        // 3. Define o Content-Type correto para o formato de formulário
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: JSON.stringify(data)
+        // 4. Envia a string de query como corpo
+        body: urlEncodedData
       })
       .then(res => {
-        // Verifica se a resposta é OK (status 200) e se o Content-Type é JSON
         if (!res.ok) {
             throw new Error('Erro na requisição: ' + res.statusText);
         }
