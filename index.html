@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Cadastro e Login Simulado com Firebase</title>
+<title>Sistema Escala GBM</title>
 <style>
 body { font-family: Arial; margin: 20px; }
 input, select, button { margin: 5px 0; padding: 5px; }
@@ -14,7 +14,7 @@ th { background-color: #f2f2f2; }
 </head>
 <body>
 
-<h1>Cadastro e Login Simulado</h1>
+<h1>Sistema Escala GBM</h1>
 
 <h2>Cadastro de Usuários</h2>
 <input type="text" id="name" placeholder="Nome">
@@ -53,6 +53,14 @@ th { background-color: #f2f2f2; }
     </thead>
     <tbody></tbody>
   </table>
+
+  <h3>Usuários Cadastrados</h3>
+  <table id="usersTable">
+    <thead>
+      <tr><th>Nome</th><th>Login</th><th>Tipo</th><th>Ações</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </div>
 
 <!-- Firebase -->
@@ -60,15 +68,15 @@ th { background-color: #f2f2f2; }
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
 
 <script>
-  // ----- CONFIGURAÇÃO DO FIREBASE -----
+  // Configuração Firebase Realtime Database
   const firebaseConfig = {
     apiKey: "AIzaSyDB41mLHYDSS0lyJ_kqBtjTsh0hd3Mn92A",
     authDomain: "fireapp-escalabc.firebaseapp.com",
-    databaseURL: "https://fireapp-escalabc.firebaseio.com",
+    databaseURL: "https://fireapp-escalabc-default-rtdb.firebaseio.com",
     projectId: "fireapp-escalabc",
     storageBucket: "fireapp-escalabc.appspot.com",
     messagingSenderId: "76641115162",
-    appId: "1:76641115162:web:4d78f078651361f24ec3a"
+    appId: "1:76641115162:web:4d78f078651361f24ec5a3"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
@@ -81,13 +89,9 @@ th { background-color: #f2f2f2; }
     const login = document.getElementById("login").value;
     const password = document.getElementById("password").value;
     const tipo = document.getElementById("tipo").value;
+    if (!name || !login || !password || !tipo) return alert("Preencha todos os campos");
 
-    if (!name || !login || !password || !tipo) {
-      alert("Preencha todos os campos");
-      return;
-    }
-
-    db.ref("usuarios").push({ name, login, password, tipo });
+    db.ref("usuarios").push({ name, login, password, tipo, active: true });
     alert("Usuário cadastrado!");
     document.getElementById("name").value = "";
     document.getElementById("login").value = "";
@@ -105,7 +109,8 @@ th { background-color: #f2f2f2; }
       let found = null;
       snapshot.forEach(snap => {
         const u = snap.val();
-        if (u.login === loginInput && u.password === passwordInput && u.tipo === tipoInput) {
+        u.key = snap.key;
+        if (u.login === loginInput && u.password === passwordInput && u.tipo === tipoInput && u.active) {
           found = u;
         }
       });
@@ -116,8 +121,9 @@ th { background-color: #f2f2f2; }
         document.getElementById("userNameDisplay").innerText = loggedUser.name;
         document.getElementById("userRoleDisplay").innerText = "Tipo: " + loggedUser.tipo;
         startRealtime();
+        loadUsers();
       } else {
-        alert("Login ou senha incorretos!");
+        alert("Login ou senha incorretos ou usuário inativo!");
         loggedUser = null;
         document.getElementById("dashboard").style.display = "none";
       }
@@ -130,7 +136,6 @@ th { background-color: #f2f2f2; }
     const year = document.getElementById("monthYear").value;
     const month = document.getElementById("monthMonth").value;
     const active = document.getElementById("monthActive").checked;
-
     if (!year || !month) return alert("Preencha ano e mês");
 
     db.ref("meses").push({ year, month, active, owner: loggedUser.login });
@@ -153,6 +158,39 @@ th { background-color: #f2f2f2; }
         }
       });
     });
+  }
+
+  // ----- LISTAR USUÁRIOS -----
+  function loadUsers() {
+    db.ref("usuarios").on("value", snapshot => {
+      const tbody = document.querySelector("#usersTable tbody");
+      tbody.innerHTML = "";
+      snapshot.forEach(snap => {
+        const u = snap.val();
+        u.key = snap.key;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${u.name}</td>
+          <td>${u.login}</td>
+          <td>${u.tipo}</td>
+          <td>
+            <button onclick="toggleUser('${u.key}', ${u.active})">${u.active ? 'Inativar' : 'Ativar'}</button>
+            <button onclick="deleteUser('${u.key}')">Excluir</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function toggleUser(key, current) {
+    db.ref("usuarios/" + key).update({ active: !current });
+  }
+
+  function deleteUser(key) {
+    if (confirm("Deseja realmente excluir este usuário?")) {
+      db.ref("usuarios/" + key).remove();
+    }
   }
 </script>
 
