@@ -16,7 +16,7 @@
   <option value="usuario">Usuário</option>
   <option value="gestor">Gestor</option>
 </select>
-<button onclick="addUser()">Cadastrar</button>
+<button id="btnAdd">Cadastrar</button>
 
 <h2>Usuários cadastrados</h2>
 <ul id="usersList"></ul>
@@ -42,7 +42,7 @@
   const db = firebase.database();
 
   // Função para adicionar usuário
-  function addUser() {
+  document.getElementById("btnAdd").addEventListener("click", () => {
     const name = document.getElementById("name").value;
     const login = document.getElementById("login").value;
     const password = document.getElementById("password").value;
@@ -58,7 +58,7 @@
     document.getElementById("login").value = "";
     document.getElementById("password").value = "";
     document.getElementById("tipo").value = "";
-  }
+  });
 
   // Mostrar usuários em tempo real
   db.ref("usuarios").on("value", snapshot => {
