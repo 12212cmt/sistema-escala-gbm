@@ -20,8 +20,15 @@
     .calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
     .dia { border: 1px solid #ddd; padding: 10px; text-align: center; cursor: pointer; }
     .dia:hover { background-color: #e0e0e0; }
-    .turnos { display: none; margin-top: 10px; }
-    .turnos button { margin: 5px; padding: 8px 12px; }
+
+    /* Turnos (exibindo opções para cada turno) */
+    .turnos { display: none; margin-top: 10px; text-align: center; }
+    .turno-btn { padding: 5px 10px; margin: 5px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 5px; }
+    .turno-btn:hover { background-color: #45a049; }
+
+    .turno-lista { display: none; margin-top: 10px; border: 1px solid #ddd; max-width: 200px; margin: 0 auto; }
+    .turno-lista a { padding: 5px 10px; display: block; text-decoration: none; color: black; background-color: #f9f9f9; border-bottom: 1px solid #ddd; }
+    .turno-lista a:hover { background-color: #e0e0e0; }
   </style>
 </head>
 <body>
@@ -48,19 +55,24 @@
 
     <!-- Seção Escala -->
     <section id="escala-form-section" class="content-section">
-      <h2>Cadastro de Escala</h2>
+      <h2>Cadastro de Escala - Janeiro de 2025</h2>
       <div class="calendario">
         <!-- Gerar o calendário dinamicamente com JavaScript -->
         <div class="dia" data-dia="01">01</div>
         <div class="dia" data-dia="02">02</div>
         <div class="dia" data-dia="03">03</div>
-        <!-- mais dias -->
+        <div class="dia" data-dia="04">04</div>
+        <div class="dia" data-dia="05">05</div>
+        <!-- Mais dias aqui -->
       </div>
-      <!-- Visualização e atribuição de turnos -->
+
+      <!-- Modal de Turnos -->
       <div class="turnos" id="turnos">
-        <button class="turno">Diurno</button>
-        <button class="turno">Noturno</button>
-        <!-- Aqui você exibirá a lista de usuários para seleção -->
+        <button class="turno-btn" id="turno-diurno">Diurno</button>
+        <button class="turno-btn" id="turno-noturno">Noturno</button>
+        <div id="turno-lista" class="turno-lista">
+          <!-- Lista de usuários aparecerá aqui -->
+        </div>
       </div>
     </section>
   </div>
@@ -72,16 +84,50 @@
       menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
     });
 
-    // Função para ativar o calendário
+    // Variáveis para controlar a interação
+    let selectedDay = null;
+    let selectedTurn = null;
+
+    // Função para exibir os turnos (diurno ou noturno)
     document.querySelectorAll('.dia').forEach(dia => {
       dia.addEventListener('click', function() {
-        const turnos = document.getElementById('turnos');
-        turnos.style.display = 'block'; // Exibe a seleção de turnos
-        // Lógica para selecionar usuário para o turno
+        selectedDay = this.getAttribute('data-dia');
+        document.getElementById('turnos').style.display = 'block'; // Exibe os turnos
       });
     });
 
-    // Buscar usuários e associar turnos (opcionalmente com uma lista suspensa)
+    // Funções para selecionar turno (Diurno ou Noturno)
+    document.getElementById('turno-diurno').addEventListener('click', function() {
+      selectedTurn = 'Diurno';
+      loadUsers();
+    });
+    document.getElementById('turno-noturno').addEventListener('click', function() {
+      selectedTurn = 'Noturno';
+      loadUsers();
+    });
+
+    // Função para carregar usuários (simulando a busca no banco de dados)
+    function loadUsers() {
+      // Supondo que os usuários estão cadastrados e vamos retornar apenas os logins
+      const usuarios = ['anderson', 'felipe', 'joão'];
+      
+      const listaTurnos = document.getElementById('turno-lista');
+      listaTurnos.innerHTML = ''; // Limpa a lista antes de adicionar os novos usuários
+
+      usuarios.forEach(usuario => {
+        const item = document.createElement('a');
+        item.href = '#';
+        item.textContent = usuario;
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          alert(`Usuário ${usuario} atribuído ao turno ${selectedTurn} no dia ${selectedDay}`);
+          // Aqui você faria a lógica para associar o usuário ao turno
+        });
+        listaTurnos.appendChild(item);
+      });
+
+      listaTurnos.style.display = 'block'; // Exibe a lista de usuários
+    }
   </script>
 </body>
 </html>
