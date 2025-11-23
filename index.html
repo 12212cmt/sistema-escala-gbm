@@ -2,21 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Sistema Escala GBM</title>
-<style>
-body { font-family: Arial; margin: 20px; }
-input, select, button { margin: 5px 0; padding: 5px; }
-#dashboard { display: none; margin-top: 20px; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-th, td { border: 1px solid #ccc; padding: 5px; }
-th { background-color: #f2f2f2; }
-</style>
+<title>Cadastro Simples Firebase</title>
 </head>
 <body>
 
-<h1>Sistema Escala GBM</h1>
+<h1>Cadastro de Usuários</h1>
 
-<h2>Cadastro de Usuários</h2>
 <input type="text" id="name" placeholder="Nome">
 <input type="text" id="login" placeholder="Login">
 <input type="password" id="password" placeholder="Senha">
@@ -27,48 +18,15 @@ th { background-color: #f2f2f2; }
 </select>
 <button onclick="addUser()">Cadastrar</button>
 
-<h2>Login</h2>
-<input type="text" id="loginInput" placeholder="Login">
-<input type="password" id="passwordInput" placeholder="Senha">
-<select id="tipoInput">
-  <option value="">Tipo</option>
-  <option value="usuario">Usuário</option>
-  <option value="gestor">Gestor</option>
-</select>
-<button onclick="login()">Entrar</button>
-
-<div id="dashboard">
-  <h2>Bem-vindo <span id="userNameDisplay"></span></h2>
-  <p id="userRoleDisplay"></p>
-
-  <h3>Meses</h3>
-  <input type="number" id="monthYear" placeholder="Ano">
-  <input type="number" id="monthMonth" placeholder="Mês">
-  <label>Ativo <input type="checkbox" id="monthActive"></label>
-  <button onclick="addMonth()">Adicionar Mês</button>
-
-  <table id="monthsTable">
-    <thead>
-      <tr><th>Ano</th><th>Mês</th><th>Ativo</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <h3>Usuários Cadastrados</h3>
-  <table id="usersTable">
-    <thead>
-      <tr><th>Nome</th><th>Login</th><th>Tipo</th><th>Ações</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+<h2>Usuários cadastrados</h2>
+<ul id="usersList"></ul>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
 
 <script>
-  // Configuração Firebase Realtime Database
+  // Configuração do Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyDB41mLHYDSS0lyJ_kqBtjTsh0hd3Mn92A",
     authDomain: "fireapp-escalabc.firebaseapp.com",
@@ -78,120 +36,41 @@ th { background-color: #f2f2f2; }
     messagingSenderId: "76641115162",
     appId: "1:76641115162:web:4d78f078651361f24ec5a3"
   };
+
+  // Inicializa Firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  let loggedUser = null;
-
-  // ----- CADASTRO DE USUÁRIOS -----
+  // Função para adicionar usuário
   function addUser() {
     const name = document.getElementById("name").value;
     const login = document.getElementById("login").value;
     const password = document.getElementById("password").value;
     const tipo = document.getElementById("tipo").value;
-    if (!name || !login || !password || !tipo) return alert("Preencha todos os campos");
 
-    db.ref("usuarios").push({ name, login, password, tipo, active: true });
-    alert("Usuário cadastrado!");
+    if (!name || !login || !password || !tipo) {
+      alert("Preencha todos os campos!");
+      return;
+    }
+
+    db.ref("usuarios").push({ name, login, password, tipo });
     document.getElementById("name").value = "";
     document.getElementById("login").value = "";
     document.getElementById("password").value = "";
     document.getElementById("tipo").value = "";
   }
 
-  // ----- LOGIN SIMULADO -----
-  function login() {
-    const loginInput = document.getElementById("loginInput").value;
-    const passwordInput = document.getElementById("passwordInput").value;
-    const tipoInput = document.getElementById("tipoInput").value;
-
-    db.ref("usuarios").once("value").then(snapshot => {
-      let found = null;
-      snapshot.forEach(snap => {
-        const u = snap.val();
-        u.key = snap.key;
-        if (u.login === loginInput && u.password === passwordInput && u.tipo === tipoInput && u.active) {
-          found = u;
-        }
-      });
-
-      if (found) {
-        loggedUser = found;
-        document.getElementById("dashboard").style.display = "block";
-        document.getElementById("userNameDisplay").innerText = loggedUser.name;
-        document.getElementById("userRoleDisplay").innerText = "Tipo: " + loggedUser.tipo;
-        startRealtime();
-        loadUsers();
-      } else {
-        alert("Login ou senha incorretos ou usuário inativo!");
-        loggedUser = null;
-        document.getElementById("dashboard").style.display = "none";
-      }
+  // Mostrar usuários em tempo real
+  db.ref("usuarios").on("value", snapshot => {
+    const list = document.getElementById("usersList");
+    list.innerHTML = "";
+    snapshot.forEach(snap => {
+      const u = snap.val();
+      const li = document.createElement("li");
+      li.textContent = `${u.name} (${u.login}) - ${u.tipo}`;
+      list.appendChild(li);
     });
-  }
-
-  // ----- ADICIONAR MESES -----
-  function addMonth() {
-    if (!loggedUser) return alert("Faça login primeiro!");
-    const year = document.getElementById("monthYear").value;
-    const month = document.getElementById("monthMonth").value;
-    const active = document.getElementById("monthActive").checked;
-    if (!year || !month) return alert("Preencha ano e mês");
-
-    db.ref("meses").push({ year, month, active, owner: loggedUser.login });
-    document.getElementById("monthYear").value = "";
-    document.getElementById("monthMonth").value = "";
-    document.getElementById("monthActive").checked = false;
-  }
-
-  // ----- RENDERIZAÇÃO EM TEMPO REAL -----
-  function startRealtime() {
-    db.ref("meses").on("value", snapshot => {
-      const tbody = document.querySelector("#monthsTable tbody");
-      tbody.innerHTML = "";
-      snapshot.forEach(snap => {
-        const m = snap.val();
-        if (loggedUser && (loggedUser.tipo === "gestor" || m.owner === loggedUser.login)) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td>${m.year}</td><td>${m.month}</td><td>${m.active ? "Sim" : "Não"}</td>`;
-          tbody.appendChild(tr);
-        }
-      });
-    });
-  }
-
-  // ----- LISTAR USUÁRIOS -----
-  function loadUsers() {
-    db.ref("usuarios").on("value", snapshot => {
-      const tbody = document.querySelector("#usersTable tbody");
-      tbody.innerHTML = "";
-      snapshot.forEach(snap => {
-        const u = snap.val();
-        u.key = snap.key;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${u.name}</td>
-          <td>${u.login}</td>
-          <td>${u.tipo}</td>
-          <td>
-            <button onclick="toggleUser('${u.key}', ${u.active})">${u.active ? 'Inativar' : 'Ativar'}</button>
-            <button onclick="deleteUser('${u.key}')">Excluir</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    });
-  }
-
-  function toggleUser(key, current) {
-    db.ref("usuarios/" + key).update({ active: !current });
-  }
-
-  function deleteUser(key) {
-    if (confirm("Deseja realmente excluir este usuário?")) {
-      db.ref("usuarios/" + key).remove();
-    }
-  }
+  });
 </script>
 
 </body>
